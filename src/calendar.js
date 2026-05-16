@@ -27,27 +27,45 @@ export async function getCalendarCached(env) {
   return events;
 }
 
+const CALENDAR_TZ = 'America/New_York';
+
+// Returns a Date pinned to midnight in the given IANA timezone,
+// expressed as a UTC instant we can compare against parseICSDate output
+// (which also returns local-midnight Date objects).
+function todayInTimezone(tz) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const y = parseInt(parts.find(p => p.type === 'year').value);
+  const m = parseInt(parts.find(p => p.type === 'month').value) - 1;
+  const d = parseInt(parts.find(p => p.type === 'day').value);
+  // Use local-midnight Date — matches parseICSDate's construction
+  return new Date(y, m, d);
+}
+
 export async function getTodayAndUpcomingEvents() {
   try {
     const res = await fetch(JAIN_CALENDAR_URL);
     const icsText = await res.text();
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+
+    const today = todayInTimezone(CALENDAR_TZ);
+
     const upcoming = new Date(today);
     upcoming.setDate(upcoming.getDate() + 30);
-    
+
     const events = parseICS(icsText);
-    
+
     const relevantEvents = events.filter(event => {
       return event.date >= today && event.date <= upcoming;
     });
-    
+
     relevantEvents.sort((a, b) => a.date - b.date);
-    
+
     return relevantEvents.slice(0, 10);
-    
+
   } catch (err) {
     console.log('Calendar fetch error:', err.message);
     return [];
@@ -112,8 +130,7 @@ export function formatEventsForClaude(events) {
     return 'No upcoming Jain calendar events found in the next 30 days.';
   }
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = todayInTimezone(CALENDAR_TZ);
   
   const lines = events.map(event => {
     const isToday = event.date.toDateString() === today.toDateString();
