@@ -126,14 +126,8 @@ function parseICSDate(dateStr) {
 }
 
 export function formatEventsForClaude(events) {
-  // DEBUG — remove after fixing tithi bug
-  const debugHeader = `[DEBUG: ${events?.length || 0} events in window]\n` +
-    (events || []).slice(0, 8).map(e =>
-      `  ${e.summary} → ${e.date.toISOString().slice(0,10)} (${e.date.toString().slice(0,3)})`
-    ).join('\n') + '\n---\n';
-
   if (!events || events.length === 0) {
-    return debugHeader + 'No upcoming Jain calendar events found in the next 30 days.';
+    return 'No upcoming Jain calendar events found in the next 30 days.';
   }
 
   const today = todayInTimezone(CALENDAR_TZ);
@@ -146,6 +140,5 @@ export function formatEventsForClaude(events) {
     return `${dateLabel}: ${event.summary}`;
   });
 
-  return debugHeader + lines.join('\n');
+  return lines.join('\n');
 }
-
