@@ -1,8 +1,52 @@
 // ============================================
-// database.js — Supabase database functions
+// database.js — Supabase + KV write-through cache
+// ============================================
+// KV is a speed layer only — Supabase is always the source of truth.
+// Write order: Supabase first, KV second. KV failures are logged
+// but non-fatal; the next getUser falls back to Supabase automatically.
 // ============================================
 
+const KV_USER_PREFIX = 'user:';
+const KV_USER_TTL = 86400; // 24h safety net — not the freshness mechanism
+
+// ── Private KV helpers ──────────────────────────────────────────────────────
+
+async function getUserFromKV(phone, env) {
+  try {
+    const cached = await env.KV.get(`${KV_USER_PREFIX}${phone}`);
+    if (cached) return JSON.parse(cached);
+  } catch (err) {
+    console.log(`[cache] kv_read_error phone=${phone} err=${err.message}`);
+  }
+  return null;
+}
+
+async function writeUserToKV(phone, user, env) {
+  try {
+    await env.KV.put(
+      `${KV_USER_PREFIX}${phone}`,
+      JSON.stringify(user),
+      { expirationTtl: KV_USER_TTL }
+    );
+  } catch (err) {
+    console.log(`[cache] kv_write_error phone=${phone} err=${err.message}`);
+    // Non-fatal — next getUser will fall back to Supabase
+  }
+}
+
+// ── Public functions ────────────────────────────────────────────────────────
+
 export async function getUser(phone, env) {
+  // KV first (~5ms on hit)
+  const cached = await getUserFromKV(phone, env);
+  if (cached) {
+    console.log(`[cache] hit phone=${phone}`);
+    return cached;
+  }
+
+  // Cache miss — fetch from Supabase, then cache the result
+  console.log(`[cache] miss phone=${phone}`);
+  const t = Date.now();
   const res = await fetch(
     `${env.SUPABASE_URL}/rest/v1/users?phone_number=eq.${phone}&limit=1`,
     {
@@ -13,11 +57,13 @@ export async function getUser(phone, env) {
     }
   );
   const data = await res.json();
-  return data[0] || null;
+  console.log(`[cache] supabase_getUser=${Date.now() - t}ms`);
+
+  const user = data[0] || null;
+  if (user) await writeUserToKV(phone, user, env);
+  return user;
 }
 
-// initialFields lets callers pre-populate columns at creation time
-// (e.g. { community: 'jain' } so we never have a user row with a null community).
 export async function createUser(phone, fields, env) {
   const res = await fetch(
     `${env.SUPABASE_URL}/rest/v1/users`,
@@ -33,10 +79,14 @@ export async function createUser(phone, fields, env) {
     }
   );
   const data = await res.json();
-  return data[0];
+  const user = data[0];
+  // Cache the new user immediately so their second message is a KV hit
+  if (user) await writeUserToKV(phone, user, env);
+  return user;
 }
 
 export async function updateUser(phone, fields, env) {
+  // 1. Supabase first — source of truth
   await fetch(
     `${env.SUPABASE_URL}/rest/v1/users?phone_number=eq.${phone}`,
     {
@@ -49,22 +99,20 @@ export async function updateUser(phone, fields, env) {
       body: JSON.stringify(fields)
     }
   );
-}
 
-export async function saveHistory(phone, user, question, answer, env) {
-  await updateUser(phone, {
-    history_1_q: question,
-    history_1_a: answer,
-    history_2_q: user.history_1_q || '',
-    history_2_a: user.history_1_a || '',
-    history_3_q: user.history_2_q || '',
-    history_3_a: user.history_2_a || ''
-  }, env);
-}
-
-// Takes the already-fetched count so we avoid a redundant getUser round-trip.
-export async function incrementMessageCount(phone, currentCount, env) {
-  const count = (currentCount || 0) + 1;
-  await updateUser(phone, { message_count: count }, env);
-  return count;
+  // 2. Merge fields into KV cache (best effort — non-fatal on failure)
+  // Only updates an existing entry; does not create one if absent.
+  try {
+    const cached = await env.KV.get(`${KV_USER_PREFIX}${phone}`);
+    if (cached) {
+      const user = JSON.parse(cached);
+      await env.KV.put(
+        `${KV_USER_PREFIX}${phone}`,
+        JSON.stringify({ ...user, ...fields }),
+        { expirationTtl: KV_USER_TTL }
+      );
+    }
+  } catch (err) {
+    console.log(`[cache] kv_update_error phone=${phone} err=${err.message}`);
+  }
 }

@@ -5,12 +5,12 @@
 // v2.0 perf changes:
 //   - Phase 1: sendReaction + getUser + getCalendarCached + getImageAsBase64
 //     all run in parallel via Promise.all (saves ~500ms off the preamble)
-//   - saveHistory + incrementMessageCount deferred to ctx.waitUntil so they
-//     don't block the user-visible sendMessage (saves ~650ms post-response)
-//   - incrementMessageCount no longer does a redundant getUser round-trip
+//   - KV write-through cache on getUser — warm reads ~5ms vs ~700ms Supabase
+//   - History + message count collapsed into one combined Supabase PATCH
+//     deferred via ctx.waitUntil — user doesn't wait, no race condition
 // ============================================
 
-import { getUser, createUser, updateUser, saveHistory, incrementMessageCount } from './src/database.js';
+import { getUser, createUser, updateUser } from './src/database.js';
 import { sendMessage, sendReaction, getImageAsBase64 } from './src/whatsapp.js';
 import { callClaude } from './src/claude.js';
 import { searchRestaurants, detectLocation } from './src/location.js';
@@ -222,12 +222,20 @@ export default {
         // -- Send response --------------------------------------------------------
         await sendMessage(phone, cleanResponse, env);
         console.log(`[perf] sent=${Date.now() - t0}ms TOTAL`);
-        // These run after the 200 is returned to Meta — the user already has their
-        // reply and doesn't wait for these.
-        ctx.waitUntil(Promise.all([
-          saveHistory(phone, user, text, cleanResponse, env),
-          incrementMessageCount(phone, user.message_count, env),
-        ]));
+        // Single combined write: history + message count in one Supabase PATCH,
+        // then KV cache updated with merged result. Runs after 200 is returned —
+        // user doesn't wait, and no race condition since it's one sequential write.
+        ctx.waitUntil((async () => {
+          await updateUser(phone, {
+            history_1_q: text,
+            history_1_a: cleanResponse,
+            history_2_q: user.history_1_q || '',
+            history_2_a: user.history_1_a || '',
+            history_3_q: user.history_2_q || '',
+            history_3_a: user.history_2_a || '',
+            message_count: (user.message_count || 0) + 1,
+          }, env);
+        })());
 
         return new Response('OK', { status: 200 });
 
