@@ -62,4 +62,9 @@ export async function saveHistory(phone, user, question, answer, env) {
   }, env);
 }
 
-export async function incrementMess
+export async function incrementMessageCount(phone, env) {
+  const user = await getUser(phone, env);
+  const count = (user?.message_count || 0) + 1;
+  await updateUser(phone, { message_count: count }, env);
+  return count;
+}

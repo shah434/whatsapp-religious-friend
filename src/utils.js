@@ -28,12 +28,11 @@ export function buildSystemPrompt(user, googleResults, calendarData, sunData) {
   const today = new Date().toDateString();
   const sun = sunData ? `\n${sunData}` : '';
 
-
   // STATIC — cached by Anthropic (same for all users of same community)
   const staticContent = CORE_IDENTITY + rules + USE_CASES;
 
   // DYNAMIC — changes every message, not cached
-   const profile = `
+  const profile = `
   CURRENT USER PROFILE:
   Community: ${user.community}
   Strictness: ${user.strictness}
@@ -61,7 +60,8 @@ End with: "Call ahead to confirm dietary requirements"`
     ? `\nJAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}`
     : '';
 
-const dynamicContent = profile + history + restaurantData + calendar + sun;
+  const dynamicContent = profile + history + restaurantData + calendar + sun;
+
   // Return as array — static part gets cached, dynamic part does not
   return [
     {
@@ -71,4 +71,51 @@ const dynamicContent = profile + history + restaurantData + calendar + sun;
     },
     {
       type: 'text',
-      text: d
+      text: dynamicContent
+    }
+  ];
+}
+
+// Used for unonboarded users who send a food question before completing setup.
+// Returns a 3-row Strict / Moderate / Flexible grid instead of a personalised verdict.
+// DIET_EXPANSION: if you add diets, create a parallel buildNeutral<Diet>SystemPrompt here.
+export function buildNeutralSystemPrompt(googleResults, calendarData, sunData) {
+  const today = new Date().toDateString();
+
+  // STATIC — Jain rules + neutral format instructions, cached across all unonboarded users
+  const staticContent = CORE_IDENTITY + RULES_JAIN + USE_CASES + NEUTRAL_JAIN_INSTRUCTIONS;
+
+  // DYNAMIC — date, optional enrichment data
+  const parts = [`Today's date: ${today}`];
+
+  if (googleResults && googleResults.length > 0) {
+    parts.push(
+      `NEARBY RESTAURANT RESULTS: ${JSON.stringify(googleResults)}\n` +
+      `FORMATTING RULE: For each restaurant include name, address, ` +
+      `phone number (nationalPhoneNumber field — always include if present in data), ` +
+      `rating, and whether currently open.\n` +
+      `Ask staff: "Do you avoid onion and garlic in any form including powder?"\n` +
+      `End with: "Call ahead to confirm dietary requirements"`
+    );
+  }
+
+  if (calendarData) {
+    parts.push(`JAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}`);
+  }
+
+  if (sunData) {
+    parts.push(sunData);
+  }
+
+  return [
+    {
+      type: 'text',
+      text: staticContent,
+      cache_control: { type: 'ephemeral' }
+    },
+    {
+      type: 'text',
+      text: parts.join('\n\n')
+    }
+  ];
+}
