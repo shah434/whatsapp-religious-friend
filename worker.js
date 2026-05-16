@@ -131,7 +131,7 @@ if (user.community === 'jain') {
   calendarData = formatEventsForClaude(events);
 
   // DEBUG — remove after fixing tithi bug
-  if (phone === 'YOUR_PHONE_NUMBER_HERE') {
+  if (phone === '16144067875') {
     await sendMessage(phone, `[DEBUG] Calendar data:\n${calendarData || '(empty)'}`, env);
   }
 }
