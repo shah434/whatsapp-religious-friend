@@ -14,10 +14,21 @@ import {
   getWelcomeMessage,
 } from './src/onboarding.js';
 import { parseProfileUpdate, stripTags, buildSystemPrompt, buildNeutralSystemPrompt } from './src/utils.js';
-import { getTodayAndUpcomingEvents, formatEventsForClaude } from './src/calendar.js';
+import { getCalendarCached, getTodayAndUpcomingEvents, formatEventsForClaude } from './src/calendar.js';
 import { getSunriseSunset, formatSunDataForClaude, detectSunsetQuery, extractCityFromSunQuery } from './src/sunset.js';
 
 export default {
+  // Cron trigger: runs at midnight UTC (5:30am IST) to pre-warm the calendar cache
+  async scheduled(event, env, ctx) {
+    try {
+      const events = await getTodayAndUpcomingEvents();
+      await env.KV.put('jain_calendar_events', JSON.stringify(events), { expirationTtl: 86400 });
+      console.log('Calendar cache pre-warmed:', events.length, 'events');
+    } catch (err) {
+      console.log('Scheduled calendar refresh error:', err.message);
+    }
+  },
+
   async fetch(req, env) {
 
     // Handle Meta webhook verification
@@ -113,10 +124,10 @@ export default {
           await updateUser(phone, { city: location }, env);
         }
 
-        // Fetch Jain calendar for Jain users (all current users)
+        // Fetch Jain calendar for Jain users — served from KV cache, pre-warmed by daily cron
         let calendarData = '';
         if (userCommunity === 'jain') {
-          const events = await getTodayAndUpcomingEvents();
+          const events = await getCalendarCached(env);
           calendarData = formatEventsForClaude(events);
         }
 

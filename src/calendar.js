@@ -5,6 +5,28 @@
 
 const JAIN_CALENDAR_URL = 'https://calendar.google.com/calendar/ical/yja.org_s2t29hla94rej0pieuc8t17a34%40group.calendar.google.com/public/basic.ics';
 
+// Returns parsed events from KV cache if available, otherwise fetches live.
+// Caches raw events (not formatted) so the TODAY label stays accurate on each request.
+export async function getCalendarCached(env) {
+  try {
+    const cached = await env.KV.get('jain_calendar_events');
+    if (cached) {
+      const events = JSON.parse(cached);
+      return events.map(e => ({ ...e, date: new Date(e.date) }));
+    }
+  } catch (err) {
+    console.log('KV read error:', err.message);
+  }
+  // Cache miss — fetch live and store
+  const events = await getTodayAndUpcomingEvents();
+  try {
+    await env.KV.put('jain_calendar_events', JSON.stringify(events), { expirationTtl: 86400 });
+  } catch (err) {
+    console.log('KV write error:', err.message);
+  }
+  return events;
+}
+
 export async function getTodayAndUpcomingEvents() {
   try {
     const res = await fetch(JAIN_CALENDAR_URL);
