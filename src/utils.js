@@ -81,7 +81,7 @@ export function buildSystemPrompt(user, googleResults, calendarData, sunData, qu
   // DYNAMIC — changes every message, not cached
   const profile = `
   CURRENT USER PROFILE:
-  Community: ${user.community}
+  Community: ${user.community || 'jain'}
   Strictness: ${user.strictness || 'not set'}
   Language: ${user.language || 'en'}
   Observance: ${user.observance || 'none'}
