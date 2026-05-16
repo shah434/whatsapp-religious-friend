@@ -124,12 +124,17 @@ export default {
           await updateUser(phone, { city: location }, env);
         }
 
-        // Fetch Jain calendar for Jain users — served from KV cache, pre-warmed by daily cron
-        let calendarData = '';
-        if (userCommunity === 'jain') {
-          const events = await getCalendarCached(env);
-          calendarData = formatEventsForClaude(events);
-        }
+        // Fetch Jain calendar if user is Jain
+let calendarData = '';
+if (user.community === 'jain') {
+  const events = await getTodayAndUpcomingEvents();
+  calendarData = formatEventsForClaude(events);
+
+  // DEBUG — remove after fixing tithi bug
+  if (phone === 'YOUR_PHONE_NUMBER_HERE') {
+    await sendMessage(phone, `[DEBUG] Calendar data:\n${calendarData || '(empty)'}`, env);
+  }
+}
 
         // Fetch sunrise/sunset if query is about sun times
         let sunData = '';
