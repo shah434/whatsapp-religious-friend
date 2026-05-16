@@ -14,7 +14,6 @@ import {
   getStrictnessQuestion,
   applyStrictnessReply,
 } from './src/onboarding.js';
-import { parseProfileUpdate, stripTags, buildSystemPrompt } from './src/utils.js';
 import { getCalendarCached, getTodayAndUpcomingEvents, formatEventsForClaude } from './src/calendar.js';
 import { getSunriseSunset, formatSunDataForClaude, detectSunsetQuery, extractCityFromSunQuery } from './src/sunset.js';
 
@@ -171,10 +170,10 @@ export default {
           claudeMessages = [{ role: 'user', content: text }];
         }
 
-     // -- Build system prompt and call Claude ----------------------------------
-      const queryTypes = classifyQuery(text, messageType === 'image');
-      const system = buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes);
-      const response = await callClaude(claudeMessages, system, env);
+        // -- Build system prompt and call Claude ----------------------------------
+        const queryTypes = classifyQuery(text, messageType === 'image');
+        const system = buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes);
+        const response = await callClaude(claudeMessages, system, env);
 
         // Parse profile updates
         const updates = parseProfileUpdate(response);
