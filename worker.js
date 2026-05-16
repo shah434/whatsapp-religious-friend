@@ -24,17 +24,9 @@ export default {
       const events = await getTodayAndUpcomingEvents();
       await env.KV.put('jain_calendar_events', JSON.stringify(events), { expirationTtl: 86400 });
       console.log('Calendar cache pre-warmed:', events.length, 'events');
-   } catch (err) {
-  console.log('Main handler error:', err.message, err.stack);
-  try {
-    const body = await req.clone().json();
-    const phone = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from;
-    if (phone) {
-      await sendMessage(phone, `⚠️ Error: ${err.message}\n${(err.stack || '').slice(0, 500)}`, env);
+    } catch (err) {
+      console.log('Scheduled calendar refresh error:', err.message);
     }
-  } catch {}
-  return new Response('OK', { status: 200 });
-}
   },
 
   async fetch(req, env) {
@@ -87,12 +79,13 @@ export default {
         // -- User lookup / auto-creation -------------------------------------------
         // New users are created immediately with the default community (Jain).
         // No community-asking flow — that comes back when BAPS launches.
-      if (isNewUser) {
-      user = await createUser(phone, env);
-      await updateUser(phone, { community: DEFAULT_DIET }, env);
-      user.community = DEFAULT_DIET; // keep local copy in sync      await sendMessage(phone, getWelcomeMessage(), env);
-      return new Response('OK', { status: 200 });
-    }
+        let user = await getUser(phone, env);
+        const isNewUser = !user;
+        if (isNewUser) {
+          user = await createUser(phone, { community: DEFAULT_DIET }, env);
+          await sendMessage(phone, getWelcomeMessage(), env);
+          return new Response('OK', { status: 200 });
+        }
 
         // -- Pending strictness reply check ---------------------------------------
         // If we previously asked for strictness and this looks like a 1/2/3 reply,
@@ -194,14 +187,11 @@ export default {
         }
 
         // -- Strictness ask detection ---------------------------------------------
-        // If Claude emitted [ASK_STRICTNESS] AND user actually has no strictness,
-        // strip the tag, append the strictness question, set the flag.
         if (response.includes('[ASK_STRICTNESS]') && !user.strictness && !updates.strictness) {
           cleanResponse = cleanResponse.replace(/\[ASK_STRICTNESS\]/gi, '').trim();
           cleanResponse += '\n\n' + getStrictnessQuestion();
           await updateUser(phone, { pending_strictness_ask: true }, env);
         } else {
-          // Strip the tag if Claude emitted it inappropriately (already had strictness)
           cleanResponse = cleanResponse.replace(/\[ASK_STRICTNESS\]/gi, '').trim();
         }
 
@@ -211,12 +201,19 @@ export default {
 
         // Increment message count
         await incrementMessageCount(phone, env);
-        // Donation nudge intentionally disabled -- re-enable when the time is right.
 
         return new Response('OK', { status: 200 });
 
       } catch (err) {
         console.log('Main handler error:', err.message, err.stack);
+        // Surface errors to the user who triggered them — remove after debugging
+        try {
+          const debugBody = await req.clone().json();
+          const debugPhone = debugBody?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from;
+          if (debugPhone) {
+            await sendMessage(debugPhone, `⚠️ Error: ${err.message}\n${(err.stack || '').slice(0, 500)}`, env);
+          }
+        } catch {}
         return new Response('OK', { status: 200 });
       }
     }
