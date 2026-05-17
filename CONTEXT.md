@@ -33,7 +33,7 @@ wrangler.toml             Cloudflare deploy config
 src/
   prompts.js              All dietary rules + use case prompts (edit here for content changes)
   database.js             Supabase user CRUD + history
-  whatsapp.js             Meta API: sendMessage / sendReaction / getImageAsBase64
+  whatsapp.js             Meta API: sendMessage / sendReaction / sendImage / getImageAsBase64
   claude.js               Anthropic API with prompt caching
   location.js             Google Places restaurant search
   onboarding.js           Onboarding state machine (text-first un-onboarded users)
@@ -70,6 +70,21 @@ test/
    drop: `reaction`, `system`, `interactive`, `button`, `unsupported`,
    `unknown`. Still verbally reject genuine unsupported media (video,
    audio, document, etc.).
+6. **User self-deletion flow** added (commit `4cf65b2`). Users can hard-delete
+   their account with a two-step confirmation entirely over WhatsApp:
+   - User sends `delete me` → bot replies with Vin Diesel family meme +
+     "Are you sure?" prompt. A `pending_delete:<phone>` KV key is set with
+     a 10-minute TTL.
+   - User replies `YES` → `deleteUser()` removes the Supabase row and clears
+     the KV cache entry → bot replies with Vin goodbye meme.
+   - User replies anything else → Vin stay meme, deletion cancelled.
+   - TTL expiry with no reply = auto-cancelled, no action needed.
+   - New `deleteUser(phone, env)` in `src/database.js`.
+   - New `sendImage(to, imageUrl, caption, env)` in `src/whatsapp.js`.
+   - Meme assets committed to repo: `vin family.png`, `vin goodbye.png`,
+     `vin stay.png` (served via raw.githubusercontent.com URLs).
+   - Designed for future pivot to anonymization: just update `deleteUser()`
+     in one place if/when volume justifies keeping anonymized analytics rows.
 
 ## Open / next up
 - **Add a strictness-levels legend to the community-pick onboarding nudge.**
@@ -141,6 +156,13 @@ git revert HEAD && git push
 All rules and use cases live in **`src/prompts.js`** — community-specific
 rules, E-number tiers, Paryushana overrides, restaurant guidance, all of
 it. No infrastructure knowledge needed to tune Claude's behavior here.
+
+## KV key patterns
+```
+user:<phone>              Cached Supabase user object (24h TTL)
+jain_calendar_events      Pre-warmed Jain tithi calendar (24h TTL, cron-refreshed)
+pending_delete:<phone>    Set when user types "delete me"; cleared on YES/cancel (10min TTL)
+```
 
 ## Database schema (Supabase `users` table)
 ```
