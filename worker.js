@@ -139,6 +139,12 @@ export default {
           return new Response('OK', { status: 200 });
         }
 
+        // -- Help keyword ---------------------------------------------------------
+        if (messageType === 'text' && text.trim().toLowerCase() === 'help') {
+          await sendMessage(phone, getWelcomeMessage(), env);
+          return new Response('OK', { status: 200 });
+        }
+
         // -- Pending strictness reply check ---------------------------------------
         if (user.pending_strictness_ask && messageType === 'text') {
           const handled = await applyStrictnessReply(phone, text, env);
@@ -246,14 +252,13 @@ export default {
         }
 
         // -- Send response --------------------------------------------------------
+        // For new users, append a one-time hint so they know help is available.
+        if (isNewUser) {
+          cleanResponse += '\n\n💡 Type *help* anytime to see what else I can do.';
+        }
         await sendMessage(phone, cleanResponse, env);
         console.log(`[perf] sent=${Date.now() - t0}ms TOTAL`);
 
-        // For new users, send welcome after the food response so it doesn't
-        // interrupt the image/ingredient analysis.
-        if (isNewUser) {
-          await sendMessage(phone, getWelcomeMessage(), env);
-        }
         // Single combined write: history + message count in one Supabase PATCH,
         // then KV cache updated with merged result. Runs after 200 is returned —
         // user doesn't wait, and no race condition since it's one sequential write.
