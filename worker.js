@@ -252,8 +252,9 @@ export default {
         }
 
         // -- Send response --------------------------------------------------------
-        // For new users, append a one-time hint so they know help is available.
-        if (isNewUser) {
+        // For users who haven't set strictness yet, append a one-time hint
+        // so they know help is available.
+        if (!user.strictness) {
           cleanResponse += '\n\n💡 Type *help* anytime to see what else I can do.';
         }
         await sendMessage(phone, cleanResponse, env);
