@@ -115,9 +115,7 @@ export default {
         const isNewUser = !user;
         if (isNewUser) {
           user = await createUser(phone, { community: DEFAULT_DIET }, env);
-          await sendMessage(phone, getWelcomeMessage(), env);
-          // Do NOT return early — continue to process the user's first message
-          // so they get a food response + strictness question in the same interaction.
+          // Welcome is sent AFTER the food response — see below.
         }
 
         // -- Pending delete confirmation check ------------------------------------
@@ -250,6 +248,12 @@ export default {
         // -- Send response --------------------------------------------------------
         await sendMessage(phone, cleanResponse, env);
         console.log(`[perf] sent=${Date.now() - t0}ms TOTAL`);
+
+        // For new users, send welcome after the food response so it doesn't
+        // interrupt the image/ingredient analysis.
+        if (isNewUser) {
+          await sendMessage(phone, getWelcomeMessage(), env);
+        }
         // Single combined write: history + message count in one Supabase PATCH,
         // then KV cache updated with merged result. Runs after 200 is returned —
         // user doesn't wait, and no race condition since it's one sequential write.
