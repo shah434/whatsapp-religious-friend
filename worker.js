@@ -38,7 +38,7 @@ const SILENT_DROP_TYPES = new Set([
 ]);
 
 const STRICTNESS_SENSITIVE = new Set([
-  'general', 'label_scan', 'restaurant', 'substitution', 'medicine', 'fasting'
+  'general', 'label_scan', 'restaurant', 'substitution', 'medicine'
 ]);
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -356,22 +356,20 @@ export default {
           ...(updates.city && { city: updates.city })
         }, env);
       }
-
-      // -- Strictness ask append ---------------------------------------------
+// -- Strictness ask append ---------------------------------------------
       cleanResponse = cleanResponse.replace(/\[ASK_STRICTNESS\]/gi, '').trim();
-
+      const isFasting = queryTypes.includes('fasting');
       const isStrictnessSensitive = queryTypes.some(t => STRICTNESS_SENSITIVE.has(t));
       const needsStrictnessAsk = !user.strictness
         && !updates.strictness
         && isStrictnessSensitive
+        && !isFasting
         && !isLikelyGreeting(text);
-
       if (needsStrictnessAsk) {
         cleanResponse += '\n\n' + getStrictnessQuestion();
         cleanResponse += '\n\n💡 Type *help* anytime to see what else I can do.';
         await setFlagKV(phone, { pending_strictness_ask: true }, env);
       }
-
       // -- Send response -----------------------------------------------------
       await sendMessage(phone, cleanResponse, env);
       console.log(`[perf] sent=${Date.now() - t0}ms TOTAL`);
