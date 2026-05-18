@@ -125,12 +125,13 @@ function parseICSDate(dateStr) {
   }
 }
 
-export function formatEventsForClaude(events) {
+export function formatEventsForClaude(events, userTimezone) {
   if (!events || events.length === 0) {
     return 'No upcoming Jain calendar events found in the next 30 days.';
   }
 
-  const today = todayInTimezone(CALENDAR_TZ);
+  const tz = userTimezone || CALENDAR_TZ;
+  const today = todayInTimezone(tz);
 
   const lines = events.map(event => {
     const isToday = event.date.toDateString() === today.toDateString();
