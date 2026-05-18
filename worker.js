@@ -1,11 +1,11 @@
-// Samta v2.1
+// Samta v2.2
 // ============================================
 // worker.js — Main Cloudflare Worker handler
 // ============================================
-// v2.1 changes:
-//   - Per-user timezone support for accurate tithi calculations
-//   - Tithi queries ask for city if none stored, then geocode for timezone
-//   - Sunset queries also persist captured timezone for future tithi accuracy
+// v2.2 changes from v2.1:
+//   - classifyQuery moved up so calendar formatter can use queryTypes
+//   - Calendar limit reduced to 3 events for most queries (10 for fasting/planning)
+//   - Greeting interceptor for "hi" / "hello" → shows welcome
 // ============================================
 
 import { getUser, createUser, updateUser, deleteUser, setFlagKV } from './src/database.js';
@@ -54,6 +54,12 @@ function isTithiQuery(text) {
 // Detects greetings — used to skip strictness asks on small talk.
 function isLikelyGreeting(text) {
   return /^(hi|hello|hey|jai jinendra|namaste|hola)\b/i.test((text || '').trim());
+}
+
+// Detects bare greetings (just "hi" / "hello") — these get the welcome.
+// Doesn't match "hi can you tell me about paneer".
+function isBareGreeting(text) {
+  return /^(hi|hello|hey|hola|namaste|jai jinendra)\b\s*[!.?]?$/i.test((text || '').trim());
 }
 
 // Rough timezone guess from WhatsApp phone country code.
@@ -142,7 +148,6 @@ export default {
       }
 
       // -- Phase 1: Parallel I/O ---------------------------------------------
-      // Kick off independent work before we know anything about the user.
       const imagePromise = messageType === 'image'
         ? getImageAsBase64(message.image.id, message.image.mime_type, env)
         : null;
@@ -197,11 +202,12 @@ export default {
         return new Response('OK', { status: 200 });
       }
 
-      // -- Greeting → show welcome ------------------------------------------
-if (messageType === 'text' && /^(hi|hello|hey|hola|namaste|jai jinendra)\b\s*[!.?]?$/i.test(text.trim())) {
-  await sendMessage(phone, getWelcomeMessage(), env);
-  return new Response('OK', { status: 200 });
-}
+      // -- Bare greeting → show welcome --------------------------------------
+      if (messageType === 'text' && isBareGreeting(text)) {
+        await sendMessage(phone, getWelcomeMessage(), env);
+        return new Response('OK', { status: 200 });
+      }
+
       // -- Pending strictness reply check ------------------------------------
       if (user.pending_strictness_ask && messageType === 'text') {
         const handled = await applyStrictnessReply(phone, text, env);
@@ -210,9 +216,6 @@ if (messageType === 'text' && /^(hi|hello|hey|hola|namaste|jai jinendra)\b\s*[!.
       }
 
       // -- Pending tithi-city reply check ------------------------------------
-      // If we asked for their city on a previous tithi query, this message
-      // should be the city. Geocode it, save city + timezone, fall through
-      // to answer the tithi question they originally asked.
       if (user.pending_tithi_city_ask && messageType === 'text') {
         const replyCity = text.trim();
         if (replyCity.length >= 2 && replyCity.length <= 50) {
@@ -225,27 +228,22 @@ if (messageType === 'text' && /^(hi|hello|hey|hola|namaste|jai jinendra)\b\s*[!.
             }, env);
             user.city = sunInfo.city;
             user.timezone = sunInfo.timezoneId;
-            // Fall through — synthesize a tithi question so Claude answers it now
-            // even though the literal message was just a city name.
+            // Fall through to answer the tithi question now that city is set
           } else {
             await sendMessage(
               phone,
-              `I couldn't find that city. Can you type cityname and state (ex. Los Angeles, CA) or your zip code?`,
+              `I couldn't find that city. Please type the full city name or your zip code.`,
               env
             );
             return new Response('OK', { status: 200 });
           }
         } else {
-          // Not a plausible city reply — clear the flag and proceed normally
           await setFlagKV(phone, { pending_tithi_city_ask: false }, env);
           user.pending_tithi_city_ask = false;
         }
       }
 
       // -- Tithi-city ask ----------------------------------------------------
-      // If asking about tithi and we have no city, ask for one. Tithi timing
-      // varies by location and answering "no tithi today" to someone whose
-      // local Friday is YJA's Thursday is worse than the small friction here.
       if (isTithiQuery(text) && !user.city && messageType === 'text' && !user.pending_tithi_city_ask) {
         await setFlagKV(phone, { pending_tithi_city_ask: true }, env);
         await sendMessage(
@@ -268,17 +266,6 @@ if (messageType === 'text' && /^(hi|hello|hey|hola|namaste|jai jinendra)\b\s*[!.
         await updateUser(phone, { city: location }, env);
         user.city = location;
       }
-
-      // Calendar — only formatted for Jain users; pass their timezone
-     let calendarData = '';
-const needsCalendar = user.community === 'jain'
-  && (isTithiQuery(text) || queryTypes.includes('fasting') || queryTypes.includes('calendar') || messageType === 'image');
-if (needsCalendar) {
-  const events = await getCalendarCached(env);
-// Fasting and tithi queries benefit from seeing upcoming events.
-// General food checks only need today's status — keep it tight.
-const calendarLimit = (queryTypes.includes('fasting') || queryTypes.includes('calendar') || /paryushana|coming|upcoming|next/i.test(text)) ? 10 : 3;
-calendarData = formatEventsForClaude(calendarEvents, user.timezone, calendarLimit);}
 
       // Sunset / sunrise
       let sunData = '';
@@ -307,18 +294,21 @@ calendarData = formatEventsForClaude(calendarEvents, user.timezone, calendarLimi
         }
       }
 
+      // -- Classify query (must come before calendar formatting) -------------
+      const queryTypes = classifyQuery(text, messageType === 'image');
+
+      // -- Calendar — Jain only, with size scaled to query type --------------
+      let calendarData = '';
+      if (user.community === 'jain') {
+        const needsFullCalendar = queryTypes.includes('fasting')
+          || queryTypes.includes('calendar')
+          || /paryushana|coming|upcoming|next/i.test(text);
+        const calendarLimit = needsFullCalendar ? 10 : 3;
+        calendarData = formatEventsForClaude(calendarEvents, user.timezone, calendarLimit);
+      }
+
       // -- Build Claude messages ---------------------------------------------
       let claudeMessages = [];
-
-      // If we just resolved a city from a tithi reply, replace the literal
-      // city-name message with the original tithi intent so Claude answers
-      // the right question.
-      const isCityReplyToTithi = user.city && !text.toLowerCase().includes('tithi')
-        && text.length < 50
-        && body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.context !== undefined;
-      // (We don't have full context tracking — keep this simple. The user
-      // might just see "no tithi today" with their city. They can re-ask
-      // and the city is now stored. Acceptable v1 behavior.)
 
       if (messageType === 'image') {
         try {
@@ -351,7 +341,6 @@ calendarData = formatEventsForClaude(calendarEvents, user.timezone, calendarLimi
       }
 
       // -- System prompt + Claude call ---------------------------------------
-      const queryTypes = classifyQuery(text, messageType === 'image');
       const system = buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes);
       console.log(`[perf] claude_start=${Date.now() - t0}ms`);
       const response = await callClaude(claudeMessages, system, env);
@@ -388,7 +377,6 @@ calendarData = formatEventsForClaude(calendarEvents, user.timezone, calendarLimi
       console.log(`[perf] sent=${Date.now() - t0}ms TOTAL`);
 
       // -- Deferred Supabase write -------------------------------------------
-      // History + message count + flags in one PATCH, after 200 is returned.
       ctx.waitUntil((async () => {
         await updateUser(phone, {
           history_1_q: text,
