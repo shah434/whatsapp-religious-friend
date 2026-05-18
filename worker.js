@@ -294,9 +294,18 @@ export default {
         }
       }
 
-      // -- Classify query (must come before calendar formatting) -------------
-      const queryTypes = classifyQuery(text, messageType === 'image');
+// -- Classify query (must come before calendar formatting) -------------
+const queryTypes = classifyQuery(text, messageType === 'image');
 
+// Short replies inherit context from the previous bot question.
+// Without this, "1" / "2" / a single fast name gets classified as 'general'
+// and triggers the strictness ask incorrectly.
+const lastBotReply = (user.history_1_a || '').toLowerCase();
+const isShortReply = text.trim().length < 20;
+const isReplyToFastMenu = isShortReply && /fast|upvas|ekasan|ayambil|chauvihar|tivihar|atthai|porsi|biyasan|navkarsi/i.test(lastBotReply);
+if (isReplyToFastMenu && !queryTypes.includes('fasting')) {
+  queryTypes.push('fasting');
+}
       // -- Calendar — Jain only, with size scaled to query type --------------
       let calendarData = '';
       if (user.community === 'jain') {
