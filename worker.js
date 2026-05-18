@@ -225,7 +225,7 @@ export default {
           } else {
             await sendMessage(
               phone,
-              `I couldn't find that city — could you try again with a larger nearby city?`,
+              `I couldn't find that city. Can you type cityname and state (ex. Los Angeles, CA) or your zip code?`,
               env
             );
             return new Response('OK', { status: 200 });
