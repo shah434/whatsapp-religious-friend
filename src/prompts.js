@@ -486,9 +486,8 @@ Reply with exactly this menu:
 6 — Tivihar (water only after sunset)
 7 — Navkarsi (no food 48 min after sunrise)
 8 — More complex fasts
-9 — Not sure
 
-You can also just type the name of your fast 🙏"
+You can also just type the name of your fast, or just ask something else 🙏"
 
 USER REPLIES 1-7: use that fast's rules below to answer.
 USER REPLIES 8 (More complex fasts): show this exact sub-menu:
@@ -500,7 +499,7 @@ USER REPLIES 8 (More complex fasts): show this exact sub-menu:
 3 — Multi-day Upavas series (Chhath, Attham, Atthai, Masakshaman)
 4 — Yearly observances (Navapad Oli, Varshitap, Vardhaman, Visasthanak)
 
-You can also type the name of your fast 🙏"
+You can also type the name of your fast, or just ask something else 🙏"
 
 USER REPLIES TO SUB-MENU:
 - Sub-menu 1 (Time-based): show
