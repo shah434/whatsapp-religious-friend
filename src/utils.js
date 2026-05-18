@@ -1,5 +1,10 @@
 // ============================================
-// utils.js — Utility and helper functions v2
+// utils.js — Utility and helper functions v2.2
+// ============================================
+// Changes in v2.2:
+//   - Per-user timezone for "Today's date" line
+//   - History truncation tightened (Q=80 chars, A=120 chars)
+//   - History block skipped entirely for first-turn users
 // ============================================
 
 import {
@@ -40,7 +45,6 @@ export function classifyQuery(text, hasImage) {
   if (/\b(fast|fasting|upvas|ekasana|ayambil|biyasana|chauvihar|tivihar|duvihar|navkarsi|paryushana|ekadashi|nirjala|jalahar|farari|nom|punam|chaturmas)\b/.test(lower)) types.add('fasting');
   if (/\b(tithi|sunset|sunrise|calendar|today.*(safe|special|fast|tithi)|what.*day)\b/.test(lower)) types.add('calendar');
 
-  // If nothing matched, default to general dietary
   if (types.size === 0) types.add('general');
 
   return Array.from(types);
@@ -67,7 +71,8 @@ export function stripTags(text) {
 
 export function buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes) {
   const rules = user.community === 'baps' ? RULES_BAPS : RULES_JAIN;
-  const sun = sunData ? `\n${sunData}` : '';
+
+  // Date computed in the user's timezone (falls back to ET, YJA's publication tz)
   const userTz = user.timezone || 'America/New_York';
   const today = new Date().toLocaleDateString('en-US', {
     timeZone: userTz,
@@ -77,52 +82,39 @@ export function buildSystemPrompt(user, googleResults, calendarData, sunData, qu
     day: 'numeric'
   });
 
-  // Assemble only the relevant use case blocks. queryTypes is an array;
-  // fall back to general if missing or empty.
+  const sun = sunData ? `\n${sunData}` : '';
+
+  // Assemble only the relevant use case blocks
   const types = (Array.isArray(queryTypes) && queryTypes.length > 0) ? queryTypes : ['general'];
   const useCases = types.map(t => USE_CASE_BLOCKS[t] || '').join('\n');
 
-  // STATIC — cached by Anthropic (same for all users of same community + query type)
-const staticContent = CORE_IDENTITY + rules + useCases;
-const dailyCachedContent = calendarData ? `\nJAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}` : '';
+  // STATIC content — cached by Anthropic
+  const staticContent = CORE_IDENTITY + rules + useCases;
 
-return [
-  {
-    type: 'text',
-    text: staticContent,
-    cache_control: { type: 'ephemeral' }  // 5-min cache, gets reused across users
-  },
-  {
-    type: 'text',
-    text: dailyCachedContent,
-    cache_control: { type: 'ephemeral' }  // second breakpoint — caches the calendar
-  },
-  {
-    type: 'text',
-    text: profile + history + restaurantData + sun  // only this is truly per-message
-  }
-];
-  // DYNAMIC — changes every message, not cached
+  // DYNAMIC content — changes per message, not cached
+
+  // Profile block
   const profile = `
-  CURRENT USER PROFILE:
-  Community: ${user.community || 'jain'}
-  Strictness: ${user.strictness || 'not set'}
-  Language: ${user.language || 'en'}
-  Observance: ${user.observance || 'none'}
-  City: ${user.city || 'not set'}
-  Today's date: ${today}`;
+CURRENT USER PROFILE:
+Community: ${user.community || 'jain'}
+Strictness: ${user.strictness || 'not set'}
+Language: ${user.language || 'en'}
+Observance: ${user.observance || 'none'}
+City: ${user.city || 'not set'}
+Today's date: ${today}`;
 
-  // Truncate Q/A history to cap dynamic token count. Long prior exchanges
-  // (label scans, detailed fasting questions) can easily add 400–600 non-cached
-  // tokens per request. 200 chars per field keeps context useful but bounded.
-const truncQ = (s) => s && s.length > 80 ? s.slice(0, 80) + '…' : (s || '');
-const truncA = (s) => s && s.length > 120 ? s.slice(0, 120) + '…' : (s || '');
-const history = user.history_1_q ? `
+  // History block — skip entirely for first-turn users.
+  // Q's stay short (~80 chars); A's may be longer but verdict is in first 120.
+  const truncQ = (s) => s && s.length > 80 ? s.slice(0, 80) + '…' : (s || '');
+  const truncA = (s) => s && s.length > 120 ? s.slice(0, 120) + '…' : (s || '');
+
+  const history = user.history_1_q ? `
 CONVERSATION HISTORY (most recent last):
 Q1: ${truncQ(user.history_3_q)} A1: ${truncA(user.history_3_a)}
 Q2: ${truncQ(user.history_2_q)} A2: ${truncA(user.history_2_a)}
 Q3: ${truncQ(user.history_1_q)} A3: ${truncA(user.history_1_a)}` : '';
 
+  // Restaurant block
   const restaurantData = googleResults && googleResults.length > 0
     ? `\nNEARBY RESTAURANT RESULTS: ${JSON.stringify(googleResults)}
 FORMATTING RULE: For each restaurant include name, address,
@@ -132,6 +124,7 @@ Ask staff: "Do you avoid onion and garlic in any form including powder?"
 End with: "Call ahead to confirm dietary requirements"`
     : '';
 
+  // Calendar block
   const calendar = calendarData
     ? `\nJAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}`
     : '';
