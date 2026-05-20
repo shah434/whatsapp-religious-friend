@@ -404,8 +404,13 @@ export default {
       }
 
       // -- Calendar — Jain only, with size scaled to query type --------------
+      // Defense in depth: only include calendar data for onboarded users
+      // (strictness set = they've completed onboarding). For everyone else,
+      // we have no city → tithi calc would be wrong by region anyway, and
+      // we'd risk Claude inventing fasting context they can't act on.
       let calendarData = '';
-      if (user.community === 'jain') {
+      const isOnboarded = !!user.strictness;
+      if (user.community === 'jain' && isOnboarded) {
         const needsFullCalendar = queryTypes.includes('fasting')
           || queryTypes.includes('calendar')
           || /paryushana|coming|upcoming|next/i.test(text);
@@ -454,6 +459,22 @@ export default {
 
       const updates = parseProfileUpdate(response);
       let cleanResponse = stripTags(response);
+
+      // Guard against tithi hallucination. If Claude mentioned a tithi
+      // term but the calendar block didn't say TODAY_IS_TITHI: true, strip
+      // the offending lines. Cheap belt-and-suspenders for high-trust
+      // religious content where a fabricated fasting day is worst-case.
+      const TITHI_TERMS = /\b(beej|bij|chaturdashi|chaumasi|paryushan|paryushana|ekadashi|atthai|attham|chhath|punam|ashtami|nom|amavasya|purnima|tithi|fast day)\b/i;
+      const calendarHadToday = /TODAY_IS_TITHI:\s*true/i.test(calendarData);
+      if (!calendarHadToday && TITHI_TERMS.test(cleanResponse)) {
+        console.log(`[guard] stripped_tithi_mention phone=${phone} response="${cleanResponse.slice(0, 200)}"`);
+        cleanResponse = cleanResponse
+          .split('\n')
+          .filter(line => !TITHI_TERMS.test(line))
+          .join('\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+      }
 
       if (updates.strictness || updates.community || updates.city) {
         await updateUser(phone, {
