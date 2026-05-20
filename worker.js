@@ -460,28 +460,40 @@ export default {
       const updates = parseProfileUpdate(response);
       let cleanResponse = stripTags(response);
 
-      // Guard against tithi hallucination. If Claude mentioned a tithi
-      // term but the calendar block didn't say TODAY_IS_TITHI: true, strip
-      // the offending lines. Cheap belt-and-suspenders for high-trust
-      // religious content where a fabricated fasting day is worst-case.
-      const TITHI_TERMS = /\b(beej|bij|chaturdashi|chaumasi|paryushan|paryushana|ekadashi|atthai|attham|chhath|punam|ashtami|nom|amavasya|purnima|tithi|fast day)\b/i;
+    // Guard against tithi hallucination. Fires only when Claude makes
+      // an assertive claim about today's tithi/fast (e.g. "today is Beej",
+      // "no food until tomorrow") without the calendar block having said
+      // TODAY_IS_TITHI: true. The word "tithi" alone is fine — clarifying
+      // questions like "want to check today's tithi?" must pass through.
+      const TITHI_CLAIM_PATTERNS = [
+        // "today is Beej", "today is a fast day"
+        /\btoday\s+is\s+(a\s+)?(?:beej|bij|chaturdashi|chaumasi|paryushan(?:a)?|ekadashi|atthai|attham|chhath|punam|ashtami|nom|amavasya|purnima|fast day|tithi)\b/i,
+        // "it is Beej today", "it's Chaturdashi"
+        /\b(?:it\s+is|it'?s)\s+(?:beej|bij|chaturdashi|chaumasi|paryushan(?:a)?|ekadashi|atthai|attham|chhath|punam|ashtami|nom|amavasya|purnima)\b/i,
+        // "no food until tomorrow", "no food should be eaten until tomorrow"
+        /\bno food (?:should be eaten )?until tomorrow\b/i,
+        // "today is a fasting day"
+        /\btoday\s+is\s+a\s+fast(?:ing)?\s+day\b/i,
+        // "(Beej)" or "(a fasting day)" appositive used to assert today
+        /\(\s*(?:beej|bij|chaturdashi|chaumasi|paryushan(?:a)?|a fasting day)\s*\)/i,
+      ];
       const calendarHadToday = /TODAY_IS_TITHI:\s*true/i.test(calendarData);
-      if (!calendarHadToday && TITHI_TERMS.test(cleanResponse)) {
-        console.log(`[guard] stripped_tithi_mention phone=${phone} response="${cleanResponse.slice(0, 200)}"`);
-        cleanResponse = cleanResponse
-          .split('\n')
-          .filter(line => !TITHI_TERMS.test(line))
-          .join('\n')
-          .replace(/\n{3,}/g, '\n\n')
+      const claimsTithiToday = TITHI_CLAIM_PATTERNS.some(p => p.test(cleanResponse));
+      if (!calendarHadToday && claimsTithiToday) {
+        console.log(`[guard] stripped_tithi_claim phone=${phone} response="${cleanResponse.slice(0, 200)}"`);
+        // Strip whole sentences that contain a claim, not whole lines —
+        // preserves surrounding food verdicts and prose.
+        const sentences = cleanResponse.split(/(?<=[.!?])\s+/);
+        cleanResponse = sentences
+          .filter(s => !TITHI_CLAIM_PATTERNS.some(p => p.test(s)))
+          .join(' ')
+          .replace(/\s+/g, ' ')
           .trim();
-      }
-
-      if (updates.strictness || updates.community || updates.city) {
-        await updateUser(phone, {
-          ...(updates.strictness && { strictness: updates.strictness }),
-          ...(updates.community && { community: updates.community }),
-          ...(updates.city && { city: updates.city })
-        }, env);
+        // If the guard ate everything, fall back to a safe message rather
+        // than sending nothing.
+        if (!cleanResponse) {
+          cleanResponse = "Let me know what you'd like to check 🙏";
+        }
       }
 
       // -- Strictness ask append ---------------------------------------------
