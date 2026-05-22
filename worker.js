@@ -2,14 +2,6 @@
 // ============================================
 // worker.js — Main Cloudflare Worker handler
 // ============================================
-// v2.5 changes from v2.4:
-//   - Persist latitude/longitude alongside city/timezone whenever a city
-//     is resolved. Sunset Case B now reconstructs the place from saved
-//     fields instead of re-geocoding the formatted display string (which
-//     Open-Meteo struggles to match → caused "I couldn't retrieve sunset
-//     timing" apologies after disambiguation).
-//   - New user welcome no longer swallows the user's first real question.
-// ============================================
 
 import { getUser, createUser, updateUser, deleteUser, setFlagKV } from './src/database.js';
 import { sendMessage, sendReaction, sendImage, getImageAsBase64 } from './src/whatsapp.js';
@@ -54,7 +46,6 @@ const STRICTNESS_SENSITIVE = new Set([
 
 // Tithi CLAIM patterns — only fire the guard on assertive statements
 // about today, not on the mere mention of the word "tithi".
-// "today is Beej" → claim. "want to check today's tithi?" → not a claim.
 const TITHI_CLAIM_PATTERNS = [
   /\btoday\s+is\s+(a\s+)?(?:beej|bij|chaturdashi|chaumasi|paryushan(?:a)?|ekadashi|atthai|attham|chhath|punam|ashtami|nom|amavasya|purnima|fast day|tithi)\b/i,
   /\b(?:it\s+is|it'?s)\s+(?:beej|bij|chaturdashi|chaumasi|paryushan(?:a)?|ekadashi|atthai|attham|chhath|punam|ashtami|nom|amavasya|purnima)\b/i,
@@ -93,9 +84,7 @@ function defaultTimezoneFromPhone(phone) {
   return 'America/New_York';
 }
 
-// Persist a fully-resolved place to both the DB and the in-memory user
-// object. Used by every code path that resolves a city — keeps lat/lng/tz
-// in sync so sunset Case B can reconstruct without re-geocoding.
+// Persist a fully-resolved place to both the DB and the in-memory user object.
 async function saveResolvedCity(phone, user, place, sunInfo, env, extraFields = {}) {
   const fields = {
     city: sunInfo.city,
@@ -190,9 +179,6 @@ export default {
       console.log(`[perf] phase1_parallel=${Date.now() - t0}ms type=${messageType}`);
 
       // -- New user creation + welcome ---------------------------------------
-      // Send welcome first, then fall through so the user's actual question
-      // still gets answered in the same turn. Only exception: bare greeting
-      // or "help" — the welcome IS the answer for those.
       if (!user) {
         user = await createUser(phone, {
           community: DEFAULT_DIET,
@@ -255,14 +241,6 @@ export default {
       }
 
       // -- Pending city reply check ------------------------------------------
-      // The previous turn asked the user for a city (for tithi, sunset, or
-      // any other path needing one). Their reply is either a number picking
-      // from a disambiguation list, or a fresh city name to geocode.
-      //
-      // Once the city is resolved and saved, we REPLAY their original
-      // question (history_1_q) verbatim through the worker. The
-      // _justResolvedCity flag prevents downstream branches from
-      // re-extracting the (now-stale) city name from the replayed message.
       if (user.pending_tithi_city_ask && messageType === 'text') {
         const replyCity = text.trim();
 
@@ -348,9 +326,6 @@ export default {
       }
 
       // -- Enrichment: restaurant --------------------------------------------
-      // If we just resolved a city via disambiguation, the replayed message
-      // may still contain the ambiguous city name — ignore it and use the
-      // saved user.city instead.
       let googleResults = [];
       const location = user._justResolvedCity ? user.city : detectLocation(text);
 
@@ -366,11 +341,6 @@ export default {
       }
 
       // -- Sunset / sunrise --------------------------------------------------
-      // Three cases:
-      //   A. New city in this message — geocode, maybe disambiguate, save, lookup
-      //   B. No city in message — use saved coordinates (no re-geocoding)
-      //   C. No city anywhere — ask
-      // After a replay, ignore any city name in the (now-stale) message text.
       let sunData = '';
       if (detectSunsetQuery(text)) {
         const cityFromMessage = user._justResolvedCity ? null : extractCityFromSunQuery(text);
@@ -392,7 +362,6 @@ export default {
             const lines = geo.candidates.map((c, i) =>
               `${i + 1} — ${c.name}${c.admin1 ? ', ' + c.admin1 : ''}, ${c.country}`
             ).join('\n');
-            // Save the original question so the disambiguation reply replays it
             await updateUser(phone, {
               pending_city_choices: JSON.stringify(geo.candidates),
               pending_tithi_city_ask: true,
@@ -422,7 +391,6 @@ export default {
           if (place) {
             sunInfo = await getSunForPlace(place);
           } else {
-            // Old row without lat/lng — re-geocode once and persist for next time
             const geo = await geocodeCity(user.city);
             if (geo.status === 'unique') {
               sunInfo = await getSunForPlace(geo.place);
@@ -451,13 +419,10 @@ export default {
       // -- Classify query ----------------------------------------------------
       const queryTypes = classifyQuery(text, messageType === 'image');
 
-      // Log short messages that classified as 'general' only — candidates
-      // for new fasting/pachkhan variants to add to src/fasting-match.js.
       if (queryTypes.length === 1 && queryTypes[0] === 'general' && text && text.length < 30) {
         console.log(`[unmatched-short] phone=${phone} text="${text}"`);
       }
 
-      // Short replies inherit fasting context from the previous bot question.
       const lastBotReply = (user.history_1_a || '').toLowerCase();
       const isShortReply = text.trim().length < 20;
       const isReplyToFastMenu = isShortReply && /fast|upvas|ekasan|ayambil|chauvihar|tivihar|atthai|porsi|biyasan|navkarsi/i.test(lastBotReply);
@@ -518,7 +483,7 @@ export default {
       const updates = parseProfileUpdate(response);
       let cleanResponse = stripTags(response);
 
-      // -- Tithi-claim guard (Bug 2) -----------------------------------------
+      // -- Tithi-claim guard -------------------------------------------------
       const calendarHadToday = /TODAY_IS_TITHI:\s*true/i.test(calendarData);
       const claimsTithiToday = TITHI_CLAIM_PATTERNS.some(p => p.test(cleanResponse));
       if (!calendarHadToday && claimsTithiToday) {
@@ -626,4 +591,5 @@ export default {
       } catch {}
       return new Response('OK', { status: 200 });
     }
+  }
 };
