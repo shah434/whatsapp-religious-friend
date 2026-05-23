@@ -29,7 +29,10 @@ async function answerRestaurant(phone, user, place, intent, env) {
     console.log(`[rebuild-restaurant] places_error err=${err.message}`);
   }
   const system = buildSystemPrompt(user, googleResults, '', '', ['restaurant']);
-  const reply = await callClaude([{ role: 'user', content: 'restaurants' }], system, env);
+  // Restaurant lists (name + address + phone + rating + status per place) far
+  // exceed the 250-token verdict default, which truncated the reply mid-list.
+  // Give this journey more room; every other journey stays at the 250 default.
+  const reply = await callClaude([{ role: 'user', content: 'restaurants' }], system, env, 600);
   await sendMessage(phone, reply, env);
 }
 
