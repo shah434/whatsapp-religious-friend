@@ -21,28 +21,38 @@ import { sendMessage } from './whatsapp.js';
 import { updateUser } from './database.js';
 
 // Does the new path own this turn for the given journey name?
-//   true if a pending record for THIS journey is waiting, or it's a fresh
-//   request for this journey.
 //
-// PENDING ALWAYS WINS: if a pending record exists for ANY city-journey, the
-// turn belongs to that journey — a fresh, different-journey intent must NOT
-// hijack it. Without this, "ask for restaurants -> bot asks city -> user types
-// 'sunset in Paris'" would let the sunset gate steal the turn and silently
-// abandon the pending restaurant flow. That is the colliding-state bug class
-// this rebuild exists to kill. So:
-//   - pending record for THIS journey  -> claim (we're resuming it)
-//   - pending record for ANOTHER city-journey -> do NOT claim (it owns the turn)
-//   - no pending record + fresh intent for THIS journey -> claim
+// The rule has to balance two failure modes:
+//   - HIJACK: a bare reply ("London", "1") to a pending "which city?" must NOT
+//     be grabbed by a different journey's gate. The pending journey owns it.
+//   - STUCK: a clear, self-contained NEW request ("find restaurants in Mumbai")
+//     typed while a stale pending sunset record sits around must NOT be blocked
+//     by that record. The new request wins and abandons the stale pending.
+//
+// The distinguishing signal is in the intent: classify() returns a real
+// city-journey ('sunset'/'restaurant') for a self-contained request, but
+// defaults a bare fragment ("London", "1", "yes") to 'food'. So:
+//   - incoming intent IS a city-journey  -> fresh request, it wins outright
+//     (whatever was pending is stale; the journey's own handler overwrites it)
+//   - incoming intent is NOT a city-journey (bare reply) -> the pending record
+//     governs: only the pending journey's gate claims it
+//   - no pending + not a fresh city-journey -> nobody claims (old path)
 const CITY_JOURNEYS = new Set(['sunset', 'restaurant']);
 
 export function cityJourneyClaims(user, intent, journeyName) {
+  // A clearly-classified fresh city-journey request always wins — it is not a
+  // reply to any pending question, so pending must not block it.
+  if (CITY_JOURNEYS.has(intent.journey)) {
+    return intent.journey === journeyName;
+  }
+  // Not a fresh city-journey request → it's a bare reply (or unrelated).
+  // If a city-journey is pending, only its owner may claim this reply.
   const pending = readPending(user.pending_action);
   if (pending && CITY_JOURNEYS.has(pending.intent.journey)) {
-    // A city-journey is mid-flow. Only its owning journey may claim the turn.
     return pending.intent.journey === journeyName;
   }
-  // No city-journey pending → a fresh request for this journey claims it.
-  return intent.journey === journeyName;
+  // Nothing pending and not a fresh city-journey → old path handles it.
+  return false;
 }
 
 // Persist a resolved place onto the user (DB + in-memory), clearing pending.
