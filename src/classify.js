@@ -173,9 +173,13 @@ export function classify(message, hasImage = false) {
 
   // 4. BARE TOPIC WORD — single on-topic noun opens that journey.
   //    NEVER offtopic. Empty params => need-gate asks the right question.
-  const bare = bareTopic(text);
+ const bare = bareTopic(text);
   if (bare) {
     intent.journey = bare;
+    if (bare === 'pachkhan') {
+      const f = detectFastTerm(text);
+      intent.params.fast_term = f.matched ? f.category : 'pachkhan_general';
+    }
     intent.prompt_blocks = bare === 'pachkhan' ? ['fasting']
       : bare === 'tithi'   ? ['calendar']
       : bare === 'sunset'  ? ['calendar']
