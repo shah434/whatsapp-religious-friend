@@ -5,6 +5,7 @@
 import { classify } from './src/classify.js';
 import { readPending } from './src/pending.js';
 import { handleRebuildSunset, rebuildSunsetClaims } from './src/rebuild-sunset.js';
+import { handleRebuildRestaurant, rebuildRestaurantClaims } from './src/rebuild-restaurant.js';
 import { getUser, createUser, updateUser, deleteUser, setFlagKV } from './src/database.js';
 import { sendMessage, sendReaction, sendImage, getImageAsBase64 } from './src/whatsapp.js';
 import { callClaude } from './src/claude.js';
@@ -246,6 +247,11 @@ export default {
           const handled = await handleRebuildSunset(phone, text, user, rbIntent, env);
           if (handled) return new Response('OK', { status: 200 });
         }
+if (rebuildRestaurantClaims(user, rbIntent, text)) {
+          const handled = await handleRebuildRestaurant(phone, text, user, rbIntent, env);
+          if (handled) return new Response('OK', { status: 200 });
+        }
+        
         // Sunset didn't claim it → this is a fresh message. Abandon any stale
         // city pending so a later "1" or city name can't resume a dead flow.
         if (user.pending_action) {
