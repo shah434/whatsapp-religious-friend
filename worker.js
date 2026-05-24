@@ -608,7 +608,7 @@ console.log(`[unmatched-short] phone=${phone} len=${text.length}`);      }
         console.log(`[empty_response] phone=${phone} queryTypes=${queryTypes.join(',')}`);
         cleanResponse = "Let me know what you'd like to check 🙏";
       }
-      await sendMessage(phone, cleanResponse, env);
+      await sendMessage(phone, tithiFact + cleanResponse, env);
       console.log(`[perf] sent=${Date.now() - t0}ms TOTAL`);
 
       // -- Deferred Supabase write -------------------------------------------
