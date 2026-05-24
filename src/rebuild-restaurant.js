@@ -1,188 +1,42 @@
-// IN PLAIN ENGLISH: the city flow logic. Do I have a city? If not, ask.
-// When they reply, is it a number picking from a list or a new city name?
-// Resolve it, save it, hand off to the journey. Shared by sunset & restaurant.
 // ============================================
-// rebuild-city-journey.js — shared core for city-needing journeys (v3.1)
+// rebuild-restaurant.js — v3.1 restaurant journey (thin; shared city core)
 // ============================================
-// Sunset and restaurant are the same shape: they need ONE city, and once
-// they have a resolved place they produce an answer. The ONLY difference is
-// the answer step. Rather than copy the resolve/pending/resume machinery into
-// two files that will drift apart, that machinery lives here ONCE, and each
-// journey supplies:
-//   - its journey name ('sunset' | 'restaurant')
-//   - an askCityPrompt string ("Which city should I check sunset for?")
-//   - an answer(phone, user, place, intent, env) function
-//
-// This is the same isolation contract as before: reads/writes ONLY
-// users.pending_action, always returns true when it owns the turn, never
-// touches the old flags, never replays raw text.
+// Same shape as rebuild-sunset.js. Supplies only what's unique to restaurant:
+// the ask-city prompt and how to answer once we have a resolved place.
 // ============================================
-
-import { resolveLocation, formatCandidatePicker } from './resolveLocation.js';
-import { serializePending, readPending } from './pending.js';
+import { cityJourneyClaims, handleCityJourney } from './rebuild-city-journey.js';
+import { searchRestaurants } from './location.js';
 import { sendMessage } from './whatsapp.js';
-import { updateUser } from './database.js';
 
-// Does the new path own this turn for the given journey name?
-//
-// The rule has to balance two failure modes:
-//   - HIJACK: a bare reply ("London", "1") to a pending "which city?" must NOT
-//     be grabbed by a different journey's gate. The pending journey owns it.
-//   - STUCK: a clear, self-contained NEW request ("find restaurants in Mumbai")
-//     typed while a stale pending sunset record sits around must NOT be blocked
-//     by that record. The new request wins and abandons the stale pending.
-//
-// The distinguishing signal is in the intent: classify() returns a real
-// city-journey ('sunset'/'restaurant') for a self-contained request, but
-// defaults a bare fragment ("London", "1", "yes") to 'food'. So:
-//   - incoming intent IS a city-journey  -> fresh request, it wins outright
-//     (whatever was pending is stale; the journey's own handler overwrites it)
-//   - incoming intent is NOT a city-journey (bare reply) -> the pending record
-//     governs: only the pending journey's gate claims it
-//   - no pending + not a fresh city-journey -> nobody claims (old path)
-const CITY_JOURNEYS = new Set(['sunset', 'restaurant']);
-
-// Is this incoming message clearly a NEW request rather than a reply to our
-// pending "which city?" question? If so, the pending city flow must release
-// it so the new request gets handled normally — never trap it in the picker.
-//
-// A bare reply ("London", "2", "yes", "the first one") classifies as the
-// 'food' default WITH NO food_text — that's a city/number answer, resume it.
-// A real question ("can i eat paneer", "is gelatin safe") classifies as food
-// WITH a food_text, OR as a different real journey (restaurant/sunset/tithi/
-// account) — that's a new request, release it.
-export function isClearlyNewRequest(intent) {
-  if (intent.journey !== 'food') return true;          // a different real journey
-  if (intent.params && intent.params.food_text) return true; // a real food question
-  return false;                                        // bare reply / pick answer
+export function rebuildRestaurantClaims(user, intent, text) {
+  return cityJourneyClaims(user, intent, 'restaurant', text);
 }
 
-export function cityJourneyClaims(user, intent, journeyName) {
-  // A clearly-classified fresh city-journey request always wins — it is not a
-  // reply to any pending question, so pending must not block it.
-  if (CITY_JOURNEYS.has(intent.journey)) {
-    return intent.journey === journeyName;
+async function answerRestaurant(phone, user, place, intent, env) {
+  const communityQuery = user.community === 'baps'
+    ? 'BAPS Swaminarayan friendly'
+    : 'Jain friendly';
+  const results = await searchRestaurants(communityQuery, place.name, env);
+
+  if (!results.length) {
+    await sendMessage(phone, `I couldn't find vegetarian-friendly spots in ${place.name} right now. Try a nearby larger city 🙏`, env);
+    return;
   }
-  // A clearly NEW request of any other kind (a real food question, account,
-  // tithi, etc.) must NOT be swallowed by a pending city flow — release it.
-  if (isClearlyNewRequest(intent)) {
-    return false;
-  }
-  // Not a fresh request → it's a bare reply (city name / number / "yes").
-  // If a city-journey is pending, only its owner may claim this reply.
-  const pending = readPending(user.pending_action);
-  if (pending && CITY_JOURNEYS.has(pending.intent.journey)) {
-    return pending.intent.journey === journeyName;
-  }
-  // Nothing pending and not a fresh city-journey → old path handles it.
-  return false;
+
+  const lines = results.slice(0, 5).map((p, i) => {
+    const name = p.displayName?.text || 'Unnamed';
+    const rating = p.rating ? ` ⭐ ${p.rating}` : '';
+    const addr = p.formattedAddress ? `\n   ${p.formattedAddress}` : '';
+    return `${i + 1}. ${name}${rating}${addr}`;
+  }).join('\n\n');
+
+  await sendMessage(phone, `Vegetarian-friendly spots in ${place.name}:\n\n${lines}\n\n🙏`, env);
 }
 
-// Persist a resolved place onto the user (DB + in-memory), clearing pending.
-async function saveCity(phone, user, place, env) {
-  const display = `${place.name}${place.admin1 ? ', ' + place.admin1 : ''}${place.country ? ', ' + place.country : ''}`;
-  await updateUser(phone, {
-    city: display,
-    timezone: place.timezone,
-    latitude: place.latitude,
-    longitude: place.longitude,
-    pending_action: null,
-  }, env);
-  user.city = display;
-  user.timezone = place.timezone;
-  user.latitude = place.latitude;
-  user.longitude = place.longitude;
-  user.pending_action = null;
-}
-
-// Reconstruct a place from the user's saved coords (no re-geocode).
-// Returns null if we don't have full saved coordinates.
-function placeFromSaved(user) {
-  if (!user.city || user.latitude == null || user.longitude == null || !user.timezone) {
-    return null;
-  }
-  return {
-    name: user.city, latitude: user.latitude, longitude: user.longitude,
-    timezone: user.timezone, admin1: null, country: null,
-  };
-}
-
-// The shared handler. `journey` is { name, askCityPrompt, answer }.
-// Returns true if it handled the turn (caller must then return).
-export async function handleCityJourney(phone, text, user, intent, env, journey) {
-  const pending = readPending(user.pending_action);
-
-  // ---- RESUME: we previously asked this user for a city ----------------------
-  if (pending && pending.intent.journey === journey.name) {
-    const reply = (text || '').trim();
-
-    // Resume A: numbered pick from a city_pick list.
-    if (pending.need === 'city_pick') {
-      const n = /^[1-9][0-9]?$/.test(reply) ? parseInt(reply, 10) : null;
-      const picked = n && pending.choices[n - 1];
-      if (!picked) {
-        await sendMessage(phone, `That number didn't match the list. Please type your city name again 🙏`, env);
-        return true; // keep pending so they can retry
-      }
-      await saveCity(phone, user, picked, env);
-      await journey.answer(phone, user, picked, pending.intent, env);
-      return true;
-    }
-
-    // Resume B: they typed a city name in answer to "which city?".
-    const res = await resolveLocation(reply);
-    if (res.status === 'resolved') {
-      await saveCity(phone, user, res.place, env);
-      await journey.answer(phone, user, res.place, pending.intent, env);
-      return true;
-    }
-    if (res.status === 'ambiguous') {
-      const rec = serializePending({ need: 'city_pick', intent: pending.intent, choices: res.candidates });
-      await updateUser(phone, { pending_action: rec }, env);
-      user.pending_action = rec;
-      await sendMessage(phone, formatCandidatePicker(reply, res.candidates), env);
-      return true;
-    }
-    if (res.status === 'error') {
-      await sendMessage(phone, `Sorry — I couldn't look that up right now. Please try again in a moment 🙏`, env);
-      return true; // keep pending; retry
-    }
-    // missing
-    await sendMessage(phone, `I couldn't find that city. Please type the full city name with state or country 🙏`, env);
-    return true;
-  }
-
-  // ---- FRESH request ---------------------------------------------------------
-  const cityRaw = intent.params.city_raw || null;
-
-  if (cityRaw) {
-    const res = await resolveLocation(cityRaw);
-    if (res.status === 'resolved') {
-      await saveCity(phone, user, res.place, env);
-      await journey.answer(phone, user, res.place, intent, env);
-      return true;
-    }
-    if (res.status === 'ambiguous') {
-      const rec = serializePending({ need: 'city_pick', intent, choices: res.candidates });
-      await updateUser(phone, { pending_action: rec }, env);
-      user.pending_action = rec;
-      await sendMessage(phone, formatCandidatePicker(cityRaw, res.candidates), env);
-      return true;
-    }
-    // missing/error → fall through to saved-city / ask
-  }
-
-  // Saved city? Use it without re-geocoding.
-  const saved = placeFromSaved(user);
-  if (saved) {
-    await journey.answer(phone, user, saved, intent, env);
-    return true;
-  }
-
-  // Nothing usable → store pending(need:city, intent) and ask.
-  const rec = serializePending({ need: 'city', intent });
-  await updateUser(phone, { pending_action: rec }, env);
-  user.pending_action = rec;
-  await sendMessage(phone, journey.askCityPrompt, env);
-  return true;
+export async function handleRebuildRestaurant(phone, text, user, intent, env) {
+  return handleCityJourney(phone, text, user, intent, env, {
+    name: 'restaurant',
+    askCityPrompt: `Which city should I find restaurants in? 🙏`,
+    answer: answerRestaurant,
+  });
 }
