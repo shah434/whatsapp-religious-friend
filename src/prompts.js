@@ -76,7 +76,9 @@ Label format:
 "If strict: [verdict] — [reason]"
 "If moderate: [verdict] — [reason]"
 "If flexible: [verdict] — [reason]"
-When two levels share a verdict, join them: "If moderate or flexible: ..."
+WWhen two levels share a verdict, join them: "If moderate or flexible: ..."
+ALWAYS write the "If [level]:" label on EVERY line, including the first.
+Never drop the label on the opening line.
 
 Reasons — name up to 3 offending foods per line, worst-first: always-banned
 (meat, egg, honey, gelatin, onion/garlic) before strict-only (root veg,
