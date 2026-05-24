@@ -23,6 +23,21 @@ async function answerRestaurant(phone, user, place, intent, env) {
     return;
   }
 
+  const blocks = results.slice(0, 5).map(p => {
+    const name = p.displayName?.text || 'Unnamed';
+    const addr = p.formattedAddress || '';
+    const phoneNo = p.nationalPhoneNumber ? `\n📞 ${p.nationalPhoneNumber}` : '';
+    const rating = p.rating ? `⭐ ${p.rating}` : '';
+    const open = p.regularOpeningHours?.openNow != null
+      ? (p.regularOpeningHours.openNow ? ' | Open now' : ' | Closed now')
+      : '';
+    const ratingLine = (rating || open) ? `\n${rating}${open}` : '';
+    return `*${name}*\n${addr}${phoneNo}${ratingLine}`;
+  }).join('\n\n');
+
+  await sendMessage(phone, blocks, env);
+}
+
   const lines = results.slice(0, 5).map((p, i) => {
     const name = p.displayName?.text || 'Unnamed';
     const rating = p.rating ? ` ⭐ ${p.rating}` : '';
