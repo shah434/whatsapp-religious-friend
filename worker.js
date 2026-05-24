@@ -4,7 +4,6 @@
 // ============================================
 import { classify } from './src/classify.js';
 import { handleRebuildSunset, rebuildSunsetClaims } from './src/rebuild-sunset.js';
-import { handleRebuildRestaurant, rebuildRestaurantClaims } from './src/rebuild-restaurant.js';
 import { getUser, createUser, updateUser, deleteUser, setFlagKV } from './src/database.js';
 import { sendMessage, sendReaction, sendImage, getImageAsBase64 } from './src/whatsapp.js';
 import { callClaude } from './src/claude.js';
@@ -195,6 +194,7 @@ export default {
           return new Response('OK', { status: 200 });
         }
         // Fall through — answer the question too
+      }
 // -- REBUILD SWITCH: new-foundation sunset path (Option A) --------------
       // When REBUILD_MODE === 'on', sunset requests (and replies to a sunset
       // pending record) route through the new classify→resolver→pending path.
