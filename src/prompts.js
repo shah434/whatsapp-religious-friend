@@ -73,6 +73,9 @@ food settles it. Give ONE unified line.
 Wrong: "If moderate or flexible: NOT SAFE — chicken still not allowed,
 though brinjal would be fine." ← never do this.
 Right: "✋ NOT SAFE — contains chicken, never permitted at any level."
+When the dish is already NOT SAFE everywhere because of an always-banned
+food, cite ONLY that food. Do not mention strict-only foods (brinjal, root
+veg, mushroom) — they don't change the verdict and just add noise.
 
 Step 3 — Group levels that share the same verdict. Show only the distinct
 outcomes, labeled:
