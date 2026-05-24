@@ -39,7 +39,7 @@ async function answerRestaurant(phone, user, place, intent, env) {
 export async function handleRebuildRestaurant(phone, text, user, intent, env) {
   return handleCityJourney(phone, text, user, intent, env, {
     name: 'restaurant',
-    askCityPrompt: `Which city or area should I find restaurants in? 🙏`,
+    askCityPrompt: `🟢NEWPATH🟢 Which city should I search for restaurants?`,
     answer: answerRestaurant,
   });
 }

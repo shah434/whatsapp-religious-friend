@@ -1,6 +1,6 @@
 // ============================================
 // rebuild-city-journey.test.js — claim/isolation logic for city journeys
-// Run: npm test
+// Run: npm test 
 // ============================================
 // Tests cityJourneyClaims() — the rule that decides which journey owns a turn.
 // The handler itself (handleCityJourney) calls network/WhatsApp/Claude and is
@@ -45,18 +45,37 @@ describe('cityJourneyClaims — resume (pending owns the turn)', () => {
   });
 });
 
-describe('cityJourneyClaims — PENDING ALWAYS WINS (no hijack)', () => {
-  it('pending restaurant + fresh sunset intent → sunset gate does NOT claim', () => {
-    expect(cityJourneyClaims(pendingRest, sunsetIntent, 'sunset')).toBe(false);
+describe('cityJourneyClaims — fresh request supersedes STALE pending', () => {
+  // The bug that shipped: a fresh restaurant request was blocked by a leftover
+  // sunset pending record. A clearly-classified new city-journey must win.
+  it('fresh restaurant intent + stale sunset pending → restaurant claims', () => {
+    expect(cityJourneyClaims(pendingSunset, restIntent, 'restaurant')).toBe(true);
   });
-  it('pending restaurant + fresh sunset intent → restaurant gate still claims', () => {
-    expect(cityJourneyClaims(pendingRest, sunsetIntent, 'restaurant')).toBe(true);
+  it('fresh restaurant intent + stale sunset pending → sunset does NOT claim', () => {
+    expect(cityJourneyClaims(pendingSunset, restIntent, 'sunset')).toBe(false);
   });
-  it('pending sunset + fresh restaurant intent → restaurant gate does NOT claim', () => {
-    expect(cityJourneyClaims(pendingSunset, restIntent, 'restaurant')).toBe(false);
+  it('fresh sunset intent + stale restaurant pending → sunset claims', () => {
+    expect(cityJourneyClaims(pendingRest, sunsetIntent, 'sunset')).toBe(true);
   });
-  it('pending sunset + fresh restaurant intent → sunset gate still claims', () => {
-    expect(cityJourneyClaims(pendingSunset, restIntent, 'sunset')).toBe(true);
+  it('fresh sunset intent + stale restaurant pending → restaurant does NOT claim', () => {
+    expect(cityJourneyClaims(pendingRest, sunsetIntent, 'restaurant')).toBe(false);
+  });
+});
+
+describe('cityJourneyClaims — bare reply still resumes pending (no hijack)', () => {
+  // A bare reply classifies as 'food' (classify's default). It must be claimed
+  // ONLY by the pending journey, never by the other city gate.
+  it('bare reply (food intent) + pending sunset → sunset claims', () => {
+    expect(cityJourneyClaims(pendingSunset, foodIntent, 'sunset')).toBe(true);
+  });
+  it('bare reply (food intent) + pending sunset → restaurant does NOT claim', () => {
+    expect(cityJourneyClaims(pendingSunset, foodIntent, 'restaurant')).toBe(false);
+  });
+  it('bare reply (food intent) + pending restaurant → restaurant claims', () => {
+    expect(cityJourneyClaims(pendingRest, foodIntent, 'restaurant')).toBe(true);
+  });
+  it('bare reply (food intent) + pending restaurant → sunset does NOT claim', () => {
+    expect(cityJourneyClaims(pendingRest, foodIntent, 'sunset')).toBe(false);
   });
 });
 

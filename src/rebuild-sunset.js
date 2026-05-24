@@ -31,7 +31,6 @@ async function answerSunset(phone, user, place, intent, env) {
 export async function handleRebuildSunset(phone, text, user, intent, env) {
   return handleCityJourney(phone, text, user, intent, env, {
     name: 'sunset',
-    askCityPrompt: `Which city should I check sunset for? 🙏`,
-    answer: answerSunset,
+askCityPrompt: `🟢NEWPATH🟢 Which city should I check sunset for?`,    answer: answerSunset,
   });
 }
