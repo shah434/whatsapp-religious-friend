@@ -99,7 +99,7 @@ export async function handleCityJourney(phone, text, user, intent, env, journey)
   const pending = readPending(user.pending_action);
 
   // ---- RESUME: we previously asked this user for a city ----------------------
-  if (pending && pending.intent.journey === journey.name) {
+  if (pending && pending.intent.journey === journey.name && isBareReply(text)) {
     const reply = (text || '').trim();
 
     // Resume A: numbered pick from a city_pick list.
