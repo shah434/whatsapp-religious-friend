@@ -135,7 +135,8 @@ End with: "Call ahead to confirm dietary requirements"`
 
   // Calendar block
   const calendar = calendarData
-    ? `\nJAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}`
+    ? `\nJAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}
+TITHI RULE: Never state the tithi name or that today is/isn't a tithi — that line is added separately. If today is a tithi, give ONLY a 2-line explanation of its dietary practice. Do not name it.`
     : '';
 
   const dynamicContent = profile + history + restaurantData + calendar + sun;
