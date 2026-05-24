@@ -104,26 +104,32 @@ export function detectFastTerm(text) {
   if (!text) return { matched: false, category: null, term: null, matchedToken: null };
 
   const tokens = text.split(/[\s,.\?!;:()\[\]"']+/).filter(Boolean);
+  let general = null; // remember a pachkhan_general hit, but keep looking for specific
 
   for (const raw of tokens) {
     const norm = normalize(raw);
     if (norm.length < 4) continue;
 
-    // Exact normalized match first
+    // Exact normalized match
     const exact = NORMALIZED_TERMS.find(([n]) => n === norm);
     if (exact) {
-      return { matched: true, category: exact[1], term: exact[2], matchedToken: raw };
+      const hit = { matched: true, category: exact[1], term: exact[2], matchedToken: raw };
+      if (exact[1] === 'pachkhan_general') { general = general || hit; continue; }
+      return hit; // specific fast wins immediately
     }
 
-    // Fuzzy match — distance ≤ 2 for words ≥ 7 chars, ≤ 1 otherwise
+    // Fuzzy match
     const threshold = norm.length >= 7 ? 2 : 1;
     for (const [n, category, term] of NORMALIZED_TERMS) {
       if (Math.abs(n.length - norm.length) > threshold) continue;
       if (lev(norm, n) <= threshold) {
-        return { matched: true, category, term, matchedToken: raw };
+        const hit = { matched: true, category, term, matchedToken: raw };
+        if (category === 'pachkhan_general') { general = general || hit; break; }
+        return hit; // specific fast wins
       }
     }
   }
 
-  return { matched: false, category: null, term: null, matchedToken: null };
+  // No specific fast found — return the general match if there was one
+  return general || { matched: false, category: null, term: null, matchedToken: null };
 }
