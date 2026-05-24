@@ -41,21 +41,28 @@ import { updateUser } from './database.js';
 //     governs: only the pending journey's gate claims it
 //   - no pending + not a fresh city-journey -> nobody claims (old path)
 const CITY_JOURNEYS = new Set(['sunset', 'restaurant']);
-
-export function cityJourneyClaims(user, intent, journeyName) {
-  // A clearly-classified fresh city-journey request always wins — it is not a
-  // reply to any pending question, so pending must not block it.
+export function cityJourneyClaims(user, intent, journeyName, text) {
+  // Fresh city-journey request (e.g. "sunset in tokyo") always wins.
   if (CITY_JOURNEYS.has(intent.journey)) {
     return intent.journey === journeyName;
   }
-  // Not a fresh city-journey request → it's a bare reply (or unrelated).
-  // If a city-journey is pending, only its owner may claim this reply.
+  // Not a city-journey. Only claim if a city-journey is pending AND this
+  // message is a BARE REPLY to it (a number pick, or a short city name).
+  // A fresh question ("can i eat paneer") is NOT a reply — fall through.
   const pending = readPending(user.pending_action);
-  if (pending && CITY_JOURNEYS.has(pending.intent.journey)) {
-    return pending.intent.journey === journeyName;
-  }
-  // Nothing pending and not a fresh city-journey → old path handles it.
-  return false;
+  if (!pending || !CITY_JOURNEYS.has(pending.intent.journey)) return false;
+  if (pending.intent.journey !== journeyName) return false;
+  return isBareReply(text);
+}
+
+// Bare reply = a 1-2 digit number, OR a short 1-2 word string with no
+// question/food words (a typed city name). Anything else is a fresh message.
+function isBareReply(text) {
+  const t = (text || '').trim();
+  if (/^[1-9][0-9]?$/.test(t)) return true;
+  if (t.split(/\s+/).length > 2) return false;
+  if (/\b(eat|safe|can|is|are|what|how|vegan|veg|jain)\b/i.test(t)) return false;
+  return t.length >= 2 && t.length <= 50;
 }
 
 // Persist a resolved place onto the user (DB + in-memory), clearing pending.
