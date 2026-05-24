@@ -196,7 +196,6 @@ export default {
         // Fall through — answer the question too
       }
 
-      
       // -- Pending delete confirmation ---------------------------------------
       const pendingDeleteKey = `${KV_PENDING_DELETE_PREFIX}${phone}`;
       const pendingDelete = await env.KV.get(pendingDeleteKey);
@@ -235,12 +234,11 @@ export default {
         return new Response('OK', { status: 200 });
       }
 
-// -- REBUILD SWITCH: new-foundation sunset path (Option A) --------------
-      // When REBUILD_MODE === 'on', sunset requests (and replies to a sunset
-      // pending record) route through the new classify→resolver→pending path.
-      // When off, this block is skipped entirely and the bot behaves exactly
-      // as before. Only the sunset journey is wired; everything else stays on
-      // the old path regardless of the switch.
+      // -- REBUILD: new-foundation sunset path -------------------------------
+      // Runs AFTER the keyword checks above (delete me / help / greeting /
+      // pending-delete) so those commands always win over a pending sunset
+      // resume. classify() decides; only sunset is wired to the new path —
+      // everything else falls through to the old code below.
       if (messageType === 'text') {
         const rbIntent = classify(text, false);
         if (rebuildSunsetClaims(user, rbIntent)) {
@@ -248,7 +246,7 @@ export default {
           if (handled) return new Response('OK', { status: 200 });
         }
       }
-      
+
       // -- Pending strictness reply check ------------------------------------
       if (user.pending_strictness_ask && messageType === 'text') {
         const handled = await applyStrictnessReply(phone, text, env);
