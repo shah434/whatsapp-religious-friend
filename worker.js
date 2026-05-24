@@ -674,7 +674,9 @@ console.log(`[unmatched-short] phone=${phone} len=${text.length}`);      }
 
       const isFasting = queryTypes.includes('fasting');
       const isStrictnessSensitive = queryTypes.some(t => STRICTNESS_SENSITIVE.has(t));
-      const hasDualVerdict = /\bif strict\b/i.test(cleanResponse) && /\bif flexible\b/i.test(cleanResponse);
+      const levelsShown = [/\bif strict\b/i, /\bif moderate\b/i, /\bif flexible\b/i]
+        .filter(re => re.test(cleanResponse)).length;
+      const hasDualVerdict = levelsShown > 1;
       const needsStrictnessAsk = !user.strictness
         && !updates.strictness
         && isStrictnessSensitive
