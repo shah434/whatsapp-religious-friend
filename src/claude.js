@@ -15,7 +15,6 @@ export async function callClaude(messages, system, env, maxTokens = 250) {
         headers: {
           'x-api-key': env.ANTHROPIC_KEY,
           'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'prompt-caching-2024-07-31',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
