@@ -333,7 +333,8 @@ if (rebuildRestaurantClaims(user, rbIntent, text)) {
         }
 
         // -- Tithi question but no saved city → ask for it via pending_action
-        if (rbIntent.journey === 'tithi' && !user.city) {
+       if (rbIntent.journey === 'tithi' && !user.city) {
+          await sendMessage(phone, `DBG city="${user.city}" j=${rbIntent.journey}`, env);
           const rec = serializePending({ need: 'city', intent: rbIntent });
           await updateUser(phone, { pending_action: rec }, env);
           await sendMessage(phone, `Which city are you in? Tithis shift slightly by location 🙏`, env);
