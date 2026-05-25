@@ -196,7 +196,7 @@ export default {
       const today = new Date().toISOString().slice(0, 10);
       const rlKey = `ratelimit:${phone}:${today}`;
       const count = parseInt(await env.KV.get(rlKey) || '0', 10);
-      if (count >= 50) {
+      if (count >= 50000) {
         await sendMessage(phone, `You've hit today's limit 🙏 Back tomorrow.`, env);
         return new Response('OK', { status: 200 });
       }
