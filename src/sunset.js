@@ -16,6 +16,7 @@
  * placeObj has: name, latitude, longitude, timezone, admin1, country
  */
 // US state code → admin1 name (Open-Meteo returns full state names, not codes)
+// US state code → admin1 name (Open-Meteo returns full state names, not codes)
 const US_STATES = {
   al:'Alabama',ak:'Alaska',az:'Arizona',ar:'Arkansas',ca:'California',
   co:'Colorado',ct:'Connecticut',de:'Delaware',fl:'Florida',ga:'Georgia',
@@ -52,7 +53,37 @@ export async function geocodeCity(city) {
     // Narrow by qualifier. Try US state first (handles the IN = Indiana/India
     // collision: a real Indiana city matches here; an Indian city won't, and
     // falls through to the country-code filter below).
-    if
+    if (qCode) {
+      let narrowed = [];
+      if (stateName) {
+        narrowed = results.filter(
+          r => (r.admin1 || '').toLowerCase() === stateName.toLowerCase()
+        );
+      }
+      // Fall back to country-code match if state gave nothing.
+      if (narrowed.length === 0) {
+        narrowed = results.filter(
+          r => (r.country_code || '').toLowerCase() === qCode
+        );
+      }
+      if (narrowed.length > 0) results = narrowed;
+    }
+
+    const exact = results.filter(
+      r => r.name.toLowerCase() === cleanCity.toLowerCase()
+    );
+    const candidates = exact.length > 0 ? exact : results;
+
+    if (candidates.length === 1) {
+      return { status: 'unique', place: candidates[0] };
+    }
+    return { status: 'ambiguous', candidates: candidates.slice(0, 4) };
+
+  } catch (err) {
+    console.log('geocodeCity error:', err.message);
+    return { status: 'not_found' };
+  }
+}
 
 /**
  * Fetch sunrise/sunset for an already-resolved place object.
