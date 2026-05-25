@@ -236,7 +236,7 @@ export default {
       ]);
 
       console.log(`[perf] phase1_parallel=${Date.now() - t0}ms type=${messageType}`);
-
+await sendMessage(phone, `DBG city="${user?.city}" phone="${phone}" pa="${user?.pending_action}"`, env);
 
       // -- New user creation + welcome ---------------------------------------
       if (!user) {
