@@ -67,6 +67,7 @@ const RE_ENGLISH_FAST = /\b(fast|fasting|paryushana|paryushan|ekadashi|nirjala|j
 
 const RE_GREETING = /^(hi|hello|hey|hiya|yo|namaste|namaskar|jai jinendra|jai swaminarayan|hola|good (morning|afternoon|evening))\b[\s!.?]*$/i;
 const RE_ACCOUNT  = /\b(delete me|delete my account|delete my data|remove my data|remove me|unsubscribe|stop using|forget me|opt out|wipe my)\b/i;
+const RE_CITY_STATEMENT = /^(?:my city is|i live in|i'?m in|set my city to|change my city to|update my city to)\s+([a-zA-Z][a-zA-Z\s,]+?)[?.!]*$/i;
 
 // Genuinely-unrelated signals. Deliberately conservative — we would rather
 // answer a borderline message than wrongly reject a real one. offtopic is the
@@ -190,6 +191,18 @@ export function classify(message, hasImage = false) {
     return intent;
   }
 
+  // 4b. CITY STATEMENT — bare profile update ("my city is brooklyn").
+  //     Not a journey question; just save the city and confirm.
+  const cityStmt = text.match(RE_CITY_STATEMENT);
+  if (cityStmt && cityStmt[1]) {
+    const c = cityStmt[1].trim();
+    if (c.length >= 2 && c.length <= 50 && !/^(here|me|nearby)$/i.test(c)) {
+      intent.journey = 'city_update';
+      intent.params.city_raw = c;
+      intent.prompt_blocks = [];
+      return intent;
+    }
+  }
   // 5. Detect signals (order below resolves multi-signal messages).
   const fast = detectFastTerm(text);
   const englishFast = RE_ENGLISH_FAST.test(lower);
