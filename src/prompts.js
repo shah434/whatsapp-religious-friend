@@ -97,7 +97,7 @@ Label format:
 "If strict: [verdict] — [reason]"
 "If moderate: [verdict] — [reason]"
 "If flexible: [verdict] — [reason]"
-WWhen two levels share a verdict, join them: "If moderate or flexible: ..."
+When two levels share a verdict, join them: "If moderate or flexible: ..."
 ALWAYS write the "If [level]:" label on EVERY line, including the first.
 Never drop the label on the opening line.
 

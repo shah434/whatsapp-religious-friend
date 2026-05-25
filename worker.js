@@ -160,11 +160,11 @@ export default {
         }
       }
 
-      // -- Scale brake: per-user daily rate limit (50/day) -------------------
+      // -- Scale brake: per-user daily rate limit (100/day) ------------------
       const today = new Date().toISOString().slice(0, 10);
       const rlKey = `ratelimit:${phone}:${today}`;
       const count = parseInt(await env.KV.get(rlKey) || '0', 10);
-      if (count >= 50000) {
+      if (count >= 100) {
         await sendMessage(phone, `You've hit today's limit 🙏 Back tomorrow.`, env);
         return new Response('OK', { status: 200 });
       }
