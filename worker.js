@@ -23,16 +23,6 @@ import {
   applyStrictnessReply,
 } from './src/onboarding.js';
 import { getCalendarCached, getTodayAndUpcomingEvents, formatEventsForClaude } from './src/calendar.js';
-import {
-  geocodeCity,
-  getSunForPlace,
-  getSunriseSunset,
-  placeFromUser,
-  formatSunDataForClaude,
-  detectSunsetQuery,
-  extractCityFromSunQuery
-} from './src/sunset.js';
-
 // ────────────────────────────────────────────────────────────────────────────
 // Constants
 // ────────────────────────────────────────────────────────────────────────────
@@ -78,13 +68,6 @@ function logTurn(u, fields) {
   console.log(`[turn] u=${u} ${Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(' ')}`);
 }
 
-function isTithiQuery(text) {
-  const lower = (text || '').toLowerCase();
-  return /\btithi\b/.test(lower)
-    || /\bfast day\b/.test(lower)
-    || /\b(is today|today.*(special|tithi)|what.*tithi)\b/.test(lower);
-}
-
 function isLikelyGreeting(text) {
   return /^(hi|hello|hey|jai jinendra|namaste|hola)\b/i.test((text || '').trim());
 }
@@ -102,22 +85,6 @@ function defaultTimezoneFromPhone(phone) {
   if (phone.startsWith('254')) return 'Africa/Nairobi';
   if (phone.startsWith('27')) return 'Africa/Johannesburg';
   return 'America/New_York';
-}
-
-// Persist a fully-resolved place to both the DB and the in-memory user object.
-async function saveResolvedCity(phone, user, place, sunInfo, env, extraFields = {}) {
-  const fields = {
-    city: sunInfo.city,
-    timezone: sunInfo.timezoneId,
-    latitude: place.latitude,
-    longitude: place.longitude,
-    ...extraFields
-  };
-  await updateUser(phone, fields, env);
-  user.city = sunInfo.city;
-  user.timezone = sunInfo.timezoneId;
-  user.latitude = place.latitude;
-  user.longitude = place.longitude;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -315,13 +282,6 @@ if (rebuildRestaurantClaims(user, rbIntent, text)) {
           if (handled) return new Response('OK', { status: 200 });
         }
 
-        // -- Tithi question but no saved city → ask for it via pending_action
-if (rbIntent.journey === 'tithi' && !user.city) {
-          const rec = serializePending({ need: 'city', intent: rbIntent });
-          await updateUser(phone, { pending_action: rec }, env);
-          await sendMessage(phone, `Which city are you in? Tithis shift slightly by location 🙏`, env);
-          return new Response('OK', { status: 200 });
-        }
         // Fallback router: classify defaulted to food with no real food signal
         // → ambiguous message. Ask Haiku for the journey + city, then re-route
         // city journeys through the same handlers (pending/resume stays intact).
@@ -349,59 +309,6 @@ if (rbIntent.journey === 'tithi' && !user.city) {
                 : await handleRebuildRestaurant(phone, text, user, routed, env);
               if (handled) return new Response('OK', { status: 200 });
             }
-          }
-        }
-
-// -- City resume: typed city name answering a need:'city' prompt -----
-        {
-          const cp = readPending(user.pending_action);
-          if (cp && cp.need === 'city'
-              && /^[a-zA-Z]/.test(text.trim())
-              && text.trim().length >= 2 && text.trim().length <= 50) {
-            const geo = await geocodeCity(text.trim());
-            if (geo.status === 'unique') {
-              const sunInfo = await getSunForPlace(geo.place);
-              if (sunInfo) {
-                await saveResolvedCity(phone, user, geo.place, sunInfo, env, { pending_action: null });
-                await sendMessage(phone, `Got it — saved your city as ${sunInfo.city} 🙏 Ask me about today's tithi anytime.`, env);
-                return new Response('OK', { status: 200 });
-              }
-            }
-            if (geo.status === 'ambiguous') {
-              const lines = geo.candidates.map((c, i) =>
-                `${i + 1} — ${c.name}${c.admin1 ? ', ' + c.admin1 : ''}, ${c.country}`
-              ).join('\n');
-              const rec = serializePending({ need: 'city_pick', intent: cp.intent, choices: geo.candidates });
-              await updateUser(phone, { pending_action: rec }, env);
-              await sendMessage(phone, `Which one?\n\n${lines}\n\nReply with the number.`, env);
-              return new Response('OK', { status: 200 });
-            }
-            await sendMessage(phone, `I couldn't find that city. Try the full name with state or country 🙏`, env);
-            return new Response('OK', { status: 200 });
-          }
-        }
-// -- City pick resume: numeric reply to a city disambiguation -------
-        {
-          const cityPending = readPending(user.pending_action);
-         if (cityPending && cityPending.need === 'city_pick'
-              && ['city_update', 'tithi', 'sunset'].includes(cityPending.intent.journey)
-              && /^[1-9][0-9]?$/.test(text.trim())) {
-            const n = parseInt(text.trim(), 10);
-            const picked = cityPending.choices[n - 1];
-            if (picked) {
-              const sunInfo = await getSunForPlace(picked);
-              if (sunInfo) {
-                await saveResolvedCity(phone, user, picked, sunInfo, env, { pending_action: null });
-if (cityPending.intent.journey === 'sunset') {
-                  await sendMessage(phone, `Sunset today: ${sunInfo.sunset} in ${sunInfo.city} 🌇`, env);
-                } else {
-                  await sendMessage(phone, `Got it — saved your city as ${sunInfo.city} 🙏`, env);
-                }
-                return new Response('OK', { status: 200 });
-              }
-            }
-            await sendMessage(phone, `That number didn't match. Type your city name again 🙏`, env);
-            return new Response('OK', { status: 200 });
           }
         }
 
@@ -456,83 +363,6 @@ if (cityPending.intent.journey === 'sunset') {
       }
 
       let googleResults = [];
-
-      // -- Sunset / sunrise --------------------------------------------------
-      let sunData = '';
-      if (detectSunsetQuery(text)) {
-        const cityFromMessage = user._justResolvedCity ? null : extractCityFromSunQuery(text);
-
-        // Case A: new city in message
-        if (cityFromMessage && cityFromMessage.length > 2 && !cityFromMessage.toLowerCase().includes('time')) {
-          const geo = await geocodeCity(cityFromMessage);
-
-          if (geo.status === 'not_found') {
-            await sendMessage(
-              phone,
-              `I couldn't find "${cityFromMessage}". Please type the city name with state or country, or your zip code.`,
-              env
-            );
-            return new Response('OK', { status: 200 });
-          }
-
-        if (geo.status === 'ambiguous') {
-            const lines = geo.candidates.map((c, i) =>
-              `${i + 1} — ${c.name}${c.admin1 ? ', ' + c.admin1 : ''}, ${c.country}`
-            ).join('\n');
-            const rec = serializePending({
-              need: 'city_pick',
-              intent: { journey: 'sunset', params: {}, prompt_blocks: ['calendar'] },
-              choices: geo.candidates
-            });
-            await updateUser(phone, { pending_action: rec }, env);
-            await sendMessage(
-              phone,
-              `I found a few places called "${cityFromMessage}". Which one?\n\n${lines}\n\nReply with the number.`,
-              env
-            );
-            return new Response('OK', { status: 200 });
-          }
-
-          // status === 'unique' — save resolved place, then continue
-          const sunInfo = await getSunForPlace(geo.place);
-          if (sunInfo) {
-            await saveResolvedCity(phone, user, geo.place, sunInfo, env);
-            sunData = formatSunDataForClaude(sunInfo);
-          } else {
-            sunData = 'SUNSET QUERY: lookup failed. Apologize briefly and ask the user to try again.';
-          }
-        }
-        // Case B: no city in message → use saved coordinates if we have them
-        else if (user.city) {
-          const place = placeFromUser(user);
-          let sunInfo = null;
-          if (place) {
-            sunInfo = await getSunForPlace(place);
-          } else {
-            const geo = await geocodeCity(user.city);
-            if (geo.status === 'unique') {
-              sunInfo = await getSunForPlace(geo.place);
-              if (sunInfo) {
-                await saveResolvedCity(phone, user, geo.place, sunInfo, env);
-              }
-            }
-          }
-
-          if (sunInfo) {
-            sunData = formatSunDataForClaude(sunInfo);
-            if (sunInfo.timezoneId && sunInfo.timezoneId !== user.timezone) {
-              await updateUser(phone, { timezone: sunInfo.timezoneId }, env);
-              user.timezone = sunInfo.timezoneId;
-            }
-          } else {
-            sunData = 'SUNSET QUERY: lookup failed for stored city. Apologize briefly and ask the user to retry.';
-          }
-        }
-        // Case C: no city anywhere
-        else {
-          sunData = 'SUNSET QUERY: User asked about sunset but no city in message and none stored. Ask which city.';
-        }
-      }
 
       // -- Classify query ----------------------------------------------------
       const queryTypes = classifyQuery(text, messageType === 'image');
@@ -653,7 +483,9 @@ console.log(`[unmatched-short] u=${u} len=${text.length}`);    }
       }
 
       // -- System prompt + Claude call ---------------------------------------
-      const system = buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes, searchSnippets);
+      // sunData is always empty now — sunset queries are handled by rebuild-sunset
+      // before reaching this point. Kept as '' for buildSystemPrompt signature.
+      const system = buildSystemPrompt(user, googleResults, calendarData, '', queryTypes, searchSnippets);
       const maxTokens = messageType === 'image' && isLabel ? 400 : 250;
       console.log(`[perf] claude_start=${Date.now() - t0}ms`);
       const response = await callClaude(claudeMessages, system, env, maxTokens);
@@ -710,18 +542,6 @@ console.log(`[unmatched-short] u=${u} len=${text.length}`);    }
           ...(updates.strictness && { strictness: updates.strictness }),
           ...(updates.community && { community: updates.community })
         }, env);
-      }
-
-      if (updates.city) {
-        const geo = await geocodeCity(updates.city);
-
-        if (geo.status === 'unique') {
-          const sunInfo = await getSunForPlace(geo.place);
-          if (sunInfo) {
-            await saveResolvedCity(phone, user, geo.place, sunInfo, env);
-          }
-        } 
-        // status === 'not_found' — silently skip the save
       }
 
       // -- Strictness ask append ---------------------------------------------
