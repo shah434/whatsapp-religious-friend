@@ -1,0 +1,16 @@
+name = "greenbite"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = ["0 0 * * *"]  # midnight UTC = 5:30am IST — pre-warms calendar cache before first users of the day
+
+[[kv_namespaces]]
+binding = "KV"
+id = "2852615bc61a4b0b9f6528c4fced5c81"
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true

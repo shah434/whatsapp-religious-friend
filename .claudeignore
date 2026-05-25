@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+dist/
+*.log
+.git-sync.log
+package-lock.json
+git-sync-samta.ps1
+register-task.ps1

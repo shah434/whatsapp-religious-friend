@@ -1,0 +1,176 @@
+// IN PLAIN ENGLISH: the city flow logic. Do I have a city? If not, ask.
+// When they reply, is it a number picking from a list or a new city name?
+// Resolve it, save it, hand off to the journey. Shared by sunset & restaurant.
+// ============================================
+// rebuild-city-journey.js — shared core for city-needing journeys (v3.1)
+// ============================================
+// Sunset and restaurant are the same shape: they need ONE city, and once
+// they have a resolved place they produce an answer. The ONLY difference is
+// the answer step. Rather than copy the resolve/pending/resume machinery into
+// two files that will drift apart, that machinery lives here ONCE, and each
+// journey supplies:
+//   - its journey name ('sunset' | 'restaurant')
+//   - an askCityPrompt string ("Which city should I check sunset for?")
+//   - an answer(phone, user, place, intent, env) function
+//
+// This is the same isolation contract as before: reads/writes ONLY
+// users.pending_action, always returns true when it owns the turn, never
+// touches the old flags, never replays raw text.
+// ============================================
+
+import { resolveLocation, formatCandidatePicker } from './resolveLocation.js';
+import { serializePending, readPending } from './pending.js';
+import { sendMessage } from './whatsapp.js';
+import { updateUser } from './database.js';
+
+// Does the new path own this turn for the given journey name?
+//
+// The rule has to balance two failure modes:
+//   - HIJACK: a bare reply ("London", "1") to a pending "which city?" must NOT
+//     be grabbed by a different journey's gate. The pending journey owns it.
+//   - STUCK: a clear, self-contained NEW request ("find restaurants in Mumbai")
+//     typed while a stale pending sunset record sits around must NOT be blocked
+//     by that record. The new request wins and abandons the stale pending.
+//
+// The distinguishing signal is in the intent: classify() returns a real
+// city-journey ('sunset'/'restaurant') for a self-contained request, but
+// defaults a bare fragment ("London", "1", "yes") to 'food'. So:
+//   - incoming intent IS a city-journey  -> fresh request, it wins outright
+//     (whatever was pending is stale; the journey's own handler overwrites it)
+//   - incoming intent is NOT a city-journey (bare reply) -> the pending record
+//     governs: only the pending journey's gate claims it
+//   - no pending + not a fresh city-journey -> nobody claims (old path)
+const CITY_JOURNEYS = new Set(['sunset', 'restaurant']);
+export function cityJourneyClaims(user, intent, journeyName, text) {
+  // Fresh city-journey request (e.g. "sunset in tokyo") always wins.
+  if (CITY_JOURNEYS.has(intent.journey)) {
+    return intent.journey === journeyName;
+  }
+  // Otherwise claim ONLY if this journey is pending AND the message is a
+  // bare reply to it. A non-bare message is a fresh request — don't claim,
+  // and abandon the pending below (handled in handleCityJourney).
+  const pending = readPending(user.pending_action);
+  if (!pending || pending.intent.journey !== journeyName) return false;
+  return isBareReply(text);
+}
+
+// Bare reply = a 1-2 digit number, OR a short 1-2 word string with no
+// question/food words (a typed city name). Anything else is a fresh message.
+export function isBareReply(text) {
+  const t = (text || '').trim();
+  if (/^[1-9][0-9]?$/.test(t)) return true;
+  if (t.split(/\s+/).length > 2) return false;
+  if (/\b(eat|safe|can|is|are|what|how|vegan|veg|jain)\b/i.test(t)) return false;
+  return t.length >= 2 && t.length <= 50;
+}
+
+// Persist a resolved place onto the user (DB + in-memory), clearing pending.
+async function saveCity(phone, user, place, env) {
+  const display = `${place.name}${place.admin1 ? ', ' + place.admin1 : ''}${place.country ? ', ' + place.country : ''}`;
+  await updateUser(phone, {
+    city: display,
+    timezone: place.timezone,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    pending_action: null,
+  }, env);
+  user.city = display;
+  user.timezone = place.timezone;
+  user.latitude = place.latitude;
+  user.longitude = place.longitude;
+  user.pending_action = null;
+}
+
+// Reconstruct a place from the user's saved coords (no re-geocode).
+// Returns null if we don't have full saved coordinates.
+function placeFromSaved(user) {
+  if (!user.city || user.latitude == null || user.longitude == null || !user.timezone) {
+    return null;
+  }
+  return {
+    name: user.city, latitude: user.latitude, longitude: user.longitude,
+    timezone: user.timezone, admin1: null, country: null,
+  };
+}
+
+// The shared handler. `journey` is { name, askCityPrompt, answer }.
+// Returns true if it handled the turn (caller must then return).
+export async function handleCityJourney(phone, text, user, intent, env, journey) {
+    await sendMessage(phone, `DBG text="${text}" journey=${intent.journey} need=${readPending(user.pending_action)?.need} cityraw=${intent.params.city_raw}`, env);
+
+  const pending = readPending(user.pending_action);
+
+  // ---- RESUME: we previously asked this user for a city ----------------------
+  if (pending && pending.intent.journey === journey.name && isBareReply(text)) {
+    const reply = (text || '').trim();
+
+    // Resume A: numbered pick from a city_pick list.
+    if (pending.need === 'city_pick') {
+      const n = /^[1-9][0-9]?$/.test(reply) ? parseInt(reply, 10) : null;
+      const picked = n && pending.choices[n - 1];
+      if (!picked) {
+        await sendMessage(phone, `That number didn't match the list. Please type your city name again 🙏`, env);
+        return true; // keep pending so they can retry
+      }
+      await saveCity(phone, user, picked, env);
+      await journey.answer(phone, user, picked, pending.intent, env);
+      return true;
+    }
+
+    // Resume B: they typed a city name in answer to "which city?".
+    const res = await resolveLocation(reply);
+    if (res.status === 'resolved') {
+      await saveCity(phone, user, res.place, env);
+      await journey.answer(phone, user, res.place, pending.intent, env);
+      return true;
+    }
+    if (res.status === 'ambiguous') {
+      const rec = serializePending({ need: 'city_pick', intent: pending.intent, choices: res.candidates });
+      await updateUser(phone, { pending_action: rec }, env);
+      user.pending_action = rec;
+      await sendMessage(phone, formatCandidatePicker(reply, res.candidates), env);
+      return true;
+    }
+    if (res.status === 'error') {
+      await sendMessage(phone, `Sorry — I couldn't look that up right now. Please try again in a moment 🙏`, env);
+      return true; // keep pending; retry
+    }
+    // missing
+    await sendMessage(phone, `I couldn't find that city. Please type the full city name with state or country 🙏`, env);
+    return true;
+  }
+
+  // ---- FRESH request ---------------------------------------------------------
+  const cityRaw = intent.params.city_raw || null;
+
+  if (cityRaw) {
+    const res = await resolveLocation(cityRaw);
+    if (res.status === 'resolved') {
+      await saveCity(phone, user, res.place, env);
+      await journey.answer(phone, user, res.place, intent, env);
+      return true;
+    }
+    if (res.status === 'ambiguous') {
+      const rec = serializePending({ need: 'city_pick', intent, choices: res.candidates });
+      await updateUser(phone, { pending_action: rec }, env);
+      user.pending_action = rec;
+      await sendMessage(phone, formatCandidatePicker(cityRaw, res.candidates), env);
+      return true;
+    }
+    // missing/error → fall through to saved-city / ask
+  }
+
+  // Saved city? Use it without re-geocoding.
+  const saved = placeFromSaved(user);
+  if (saved) {
+    await journey.answer(phone, user, saved, intent, env);
+    return true;
+  }
+
+  // Nothing usable → store pending(need:city, intent) and ask.
+  const rec = serializePending({ need: 'city', intent });
+  await updateUser(phone, { pending_action: rec }, env);
+  user.pending_action = rec;
+  await sendMessage(phone, journey.askCityPrompt, env);
+  return true;
+}
