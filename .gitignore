@@ -5,3 +5,4 @@ dist/
 .git-sync.log
 .env
 .dev.vars
+.DS_Store
