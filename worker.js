@@ -13,6 +13,7 @@ import { getUser, createUser, updateUser, deleteUser, setFlagKV } from './src/da
 import { routeFallback } from './src/route-fallback.js';
 import { sendMessage, sendReaction, sendImage, getImageAsBase64 } from './src/whatsapp.js';
 import { callClaude } from './src/claude.js';
+import { identifyProduct, searchProductIngredients } from './src/search.js';
 import { parseProfileUpdate, stripTags, buildSystemPrompt, classifyQuery } from './src/utils.js';
 import {
   DEFAULT_DIET,
@@ -591,24 +592,74 @@ console.log(`[unmatched-short] u=${u} len=${text.length}`);    }
       if (m) tithiFact = `Today is ${m[1].trim()} 🙏\n\n`;
       // -- Build Claude messages ---------------------------------------------
       let claudeMessages = [];
+      let searchSnippets = null;   // Branch B search context for system prompt
+      let isLabel = true;          // Safe default — Branch A if identification fails
+      let productName = null;
+      let scanBranch = null;       // 'A' or 'B' — for scan log
 
       if (messageType === 'image') {
         try {
           const { base64, mimeType } = await imagePromise;
           console.log(`[perf] image_ready=${Date.now() - t0}ms`);
-          claudeMessages = [{
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: mimeType, data: base64 }
-              },
-              {
-                type: 'text',
-                text: text || 'Please scan this food label or product and check if it is safe for my diet.'
-              }
-            ]
-          }];
+
+          // -- Stage 2: identify label vs product front ----------------------
+          ({ isLabel, productName } = await identifyProduct(base64, mimeType, env));
+          console.log(`[image] classify isLabel=${isLabel} product="${productName}" latency=${Date.now() - t0}ms`);
+
+          if (isLabel) {
+            // -- Branch A: ingredient list visible — send image to Claude ----
+            scanBranch = 'A';
+            console.log(`[image] branch=A maxTokens=400`);
+            claudeMessages = [{
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: mimeType, data: base64 }
+                },
+                {
+                  type: 'text',
+                  text: text || 'Please scan this food label and check if it is safe for my diet.'
+                }
+              ]
+            }];
+
+          } else {
+            // -- Branch B: product front — search Brave for ingredients ------
+            scanBranch = 'B';
+            const snippets = productName
+              ? await searchProductIngredients(productName, env)
+              : null;
+
+            console.log(`[image] branch=B snippets=${snippets ? 'found' : 'null'} product="${productName}"`);
+
+            if (!snippets) {
+              console.log(`[image] branch=B fallback=ask_for_label product="${productName}"`);
+              await sendMessage(
+                phone,
+                `I couldn't find ingredient info for ${productName || 'this product'} online. Can you send a photo of the back label or ingredients panel? 🙏`,
+                env
+              );
+              return new Response('OK', { status: 200 });
+            }
+
+            // Inject snippets into system prompt (passed to buildSystemPrompt below)
+            searchSnippets =
+              `PRODUCT SEARCH RESULTS — ${productName}\n` +
+              `The user sent a photo of the product front (no ingredient list visible).\n` +
+              `The following web snippets were retrieved to identify ingredients:\n\n` +
+              `${snippets}\n\n` +
+              `Use these snippets to identify the likely ingredients. ` +
+              `If the snippets do not contain a clear ingredient list, say so and ask the user to send the back label. ` +
+              `Do not invent ingredients not mentioned in the snippets.`;
+
+            // Text-only call — no image needed when we have search data
+            claudeMessages = [{
+              role: 'user',
+              content: text || `Please check if ${productName} is safe for my diet based on the search results provided.`
+            }];
+          }
+
         } catch (err) {
           console.log('Image processing error:', err.message);
           await sendMessage(
@@ -623,9 +674,10 @@ console.log(`[unmatched-short] u=${u} len=${text.length}`);    }
       }
 
       // -- System prompt + Claude call ---------------------------------------
-      const system = buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes);
+      const system = buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes, searchSnippets);
+      const maxTokens = messageType === 'image' && isLabel ? 400 : 250;
       console.log(`[perf] claude_start=${Date.now() - t0}ms`);
-      const response = await callClaude(claudeMessages, system, env);
+      const response = await callClaude(claudeMessages, system, env, maxTokens);
       console.log(`[perf] claude_done=${Date.now() - t0}ms`);
 
       const updates = parseProfileUpdate(response);
@@ -634,6 +686,28 @@ console.log(`[unmatched-short] u=${u} len=${text.length}`);    }
         .replace(/TODAY_IS_TITHI:\s*(true|false)/gi, '')
         .replace(/TODAY_TITHI_NAME:.*$/gim, '')
         .trim();
+
+      // -- Short-term scan log (tuning aid — remove once behavior is stable) -
+      if (messageType === 'image' && scanBranch) {
+        try {
+          const scanLog = {
+            timestamp: new Date().toISOString(),
+            productName: productName || null,
+            branch: scanBranch,
+            snippetsFound: !!searchSnippets,
+            snippets: searchSnippets || null,
+            response: cleanResponse,
+            latencyMs: Date.now() - t0
+          };
+          await env.KV.put(
+            `log:image:${scanLog.timestamp}`,
+            JSON.stringify(scanLog),
+            { expirationTtl: 2592000 } // 30 days
+          );
+        } catch (logErr) {
+          console.log('[image] scan log write failed:', logErr.message);
+        }
+      }
 
       // -- Tithi-claim guard -------------------------------------------------
       const calendarHadToday = /TODAY_IS_TITHI:\s*true/i.test(calendarData);
@@ -746,7 +820,8 @@ console.log(`[unmatched-short] u=${u} len=${text.length}`);    }
         const debugPhone = debugBody?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from;
         if (debugPhone) {
           const msg = env.DEBUG === 'true'
-            ? `⚠️ Error: ${err.message}\n${(err.stack || '').slice(0, 500)}`
+            ? `⚠️ Error: ${err.message}
+${(err.stack || '').slice(0, 500)}`
             : 'Something went wrong on my end — please try again in a moment 🙏';
           await sendMessage(debugPhone, msg, env);
         }

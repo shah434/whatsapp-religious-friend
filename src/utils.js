@@ -78,7 +78,7 @@ export function stripTags(text) {
     .trim();
 }
 
-export function buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes) {
+export function buildSystemPrompt(user, googleResults, calendarData, sunData, queryTypes, searchSnippets = null) {
   const rules = user.community === 'baps' ? RULES_BAPS : RULES_JAIN;
 
   // Date computed in the user's timezone (falls back to ET, YJA's publication tz)
@@ -138,7 +138,9 @@ End with: "Call ahead to confirm dietary requirements"`
 TITHI RULE: Never state the tithi name or that today is/isn't a tithi — that line is added separately. If today is a tithi, give ONLY a 2-line explanation of its dietary practice. Do not name it. Do NOT open with any greeting (no "Jai Jinendra", "🙏", etc.) — a greeting is already added separately.`
     : '';
 
-const dynamicContent = profile + history + restaurantData + calendar + sun;
+  const searchData = searchSnippets ? `\n${searchSnippets}` : '';
+
+const dynamicContent = profile + history + restaurantData + calendar + sun + searchData;
   return [
     {
       type: 'text',
