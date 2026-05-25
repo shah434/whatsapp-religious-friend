@@ -460,7 +460,7 @@ if (rbIntent.journey === 'tithi' && !user.city) {
             }
           }
         }
-            
+        }    
       // -- Pending strictness reply check ------------------------------------
       if (user.pending_strictness_ask && messageType === 'text') {
         const handled = await applyStrictnessReply(phone, text, env);
