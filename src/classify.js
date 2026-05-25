@@ -191,18 +191,6 @@ export function classify(message, hasImage = false) {
     return intent;
   }
 
-  // 4b. CITY STATEMENT — bare profile update ("my city is brooklyn").
-  //     Not a journey question; just save the city and confirm.
-  const cityStmt = text.match(RE_CITY_STATEMENT);
-  if (cityStmt && cityStmt[1]) {
-    const c = cityStmt[1].trim();
-    if (c.length >= 2 && c.length <= 50 && !/^(here|me|nearby)$/i.test(c)) {
-      intent.journey = 'city_update';
-      intent.params.city_raw = c;
-      intent.prompt_blocks = [];
-      return intent;
-    }
-  }
   // 5. Detect signals (order below resolves multi-signal messages).
   const fast = detectFastTerm(text);
   const englishFast = RE_ENGLISH_FAST.test(lower);
@@ -213,6 +201,24 @@ export function classify(message, hasImage = false) {
   const isSubstitute = RE_SUBSTITUTE.test(lower);
   const isMedicine = RE_MEDICINE.test(lower);
   const isCalendar = RE_CALENDAR.test(lower);
+
+  // 5b. CITY UPDATE — explicit profile statement ("my city is X", "I live in X").
+  //     Placed AFTER signal detection so sunset/restaurant/calendar always win on
+  //     any cross-signal message (e.g. "I'm in Chicago, what's the sunset?").
+  //     Word-count cap (5) rejects sentence fragments that slip past the anchor.
+  if (!isSunset && !isRestaurant && !isCalendar) {
+    const cityStmt = text.match(RE_CITY_STATEMENT);
+    if (cityStmt && cityStmt[1]) {
+      const c = cityStmt[1].trim();
+      const wordCount = c.split(/\s+/).length;
+      if (c.length >= 2 && c.length <= 50 && wordCount <= 5 && !/^(here|me|nearby)$/i.test(c)) {
+        intent.journey = 'city_update';
+        intent.params.city_raw = c;
+        intent.prompt_blocks = [];
+        return intent;
+      }
+    }
+  }
 
   // 6. SUNSET / SUNRISE — strong, unambiguous signal.
   if (isSunset) {
