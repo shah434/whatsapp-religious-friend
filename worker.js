@@ -492,11 +492,7 @@ if (rbIntent.journey === 'tithi' && !user.city) {
             const lines = geo.candidates.map((c, i) =>
               `${i + 1} — ${c.name}${c.admin1 ? ', ' + c.admin1 : ''}, ${c.country}`
             ).join('\n');
-            await updateUser(phone, {
-              pending_city_choices: JSON.stringify(geo.candidates),
-              pending_tithi_city_ask: true,
-              history_1_q: text
-            }, env);
+          
             await sendMessage(
               phone,
               `I found a few places called "${cityFromMessage}". Which one?\n\n${lines}\n\nReply with the number.`,
