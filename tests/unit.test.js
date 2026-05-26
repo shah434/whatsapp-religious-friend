@@ -1,142 +1,16 @@
 // ============================================
 // unit.test.js — Pure function tests for Samta
-// Covers: classifyQuery, parseProfileUpdate,
-//         stripTags (utils.js), detectFastTerm
-//         (fasting-match.js)
+// Covers: classify (classify.js), stripTags (utils.js),
+//         detectFastTerm (fasting-match.js),
+//         readPending/serializePending (pending.js),
+//         cityJourneyClaims (rebuild-city-journey.js)
 // Run: npm test
 // ============================================
 
 import { describe, it, expect } from 'vitest';
-import { classifyQuery, stripTags } from '../src/utils.js';
+import { stripTags } from '../src/utils.js';
 import { classify } from '../src/classify.js';
 import { detectFastTerm } from '../src/fasting-match.js';
-
-// ============================================
-// classifyQuery
-// ============================================
-
-describe('classifyQuery', () => {
-
-  // --- Image ---
-  it('image with no text → label_scan', () => {
-    expect(classifyQuery('', true)).toContain('label_scan');
-  });
-
-  it('image with text → label_scan included', () => {
-    const result = classifyQuery('is this safe?', true);
-    expect(result).toContain('label_scan');
-  });
-
-  // --- Restaurant ---
-  it('"restaurant near me" → restaurant', () => {
-    expect(classifyQuery('restaurant near me', false)).toContain('restaurant');
-  });
-
-  it('"where to eat in chicago" → restaurant', () => {
-    expect(classifyQuery('where to eat in chicago', false)).toContain('restaurant');
-  });
-
-  it('"find jain food nearby" → restaurant', () => {
-    expect(classifyQuery('find jain food nearby', false)).toContain('restaurant');
-  });
-
-  // --- Substitution ---
-  it('"substitute for onion" → substitution', () => {
-    expect(classifyQuery('substitute for onion', false)).toContain('substitution');
-  });
-
-  it('"what can I use instead of garlic" → substitution', () => {
-    expect(classifyQuery('what can I use instead of garlic', false)).toContain('substitution');
-  });
-
-  // --- Medicine ---
-  it('"is my vitamin safe" → medicine', () => {
-    expect(classifyQuery('is my vitamin safe', false)).toContain('medicine');
-  });
-
-  it('"can I take this supplement" → medicine', () => {
-    expect(classifyQuery('can I take this supplement', false)).toContain('medicine');
-  });
-
-  it('"is this capsule jain safe" → medicine', () => {
-    expect(classifyQuery('is this capsule jain safe', false)).toContain('medicine');
-  });
-
-  // --- Fasting (English keywords) ---
-  it('"I am fasting today" → fasting', () => {
-    expect(classifyQuery('I am fasting today', false)).toContain('fasting');
-  });
-
-  it('"paryushan is coming up" → fasting', () => {
-    expect(classifyQuery('paryushan is coming up', false)).toContain('fasting');
-  });
-
-  it('"ekadashi tomorrow" → fasting', () => {
-    expect(classifyQuery('ekadashi tomorrow', false)).toContain('fasting');
-  });
-
-  // --- Fasting (fuzzy match via detectFastTerm) ---
-  it('"porsee" → fasting via fuzzy match', () => {
-    expect(classifyQuery('porsee', false)).toContain('fasting');
-  });
-
-  it('"ayambhil" → fasting via fuzzy match', () => {
-    expect(classifyQuery('ayambhil', false)).toContain('fasting');
-  });
-
-  it('"pachkhan" → fasting via fuzzy match', () => {
-    expect(classifyQuery('pachkhan', false)).toContain('fasting');
-  });
-
-  it('Gujarati "પચ્ચક્ખાણ" → fasting', () => {
-    expect(classifyQuery('પચ્ચક્ખાણ', false)).toContain('fasting');
-  });
-
-  // --- Calendar ---
-  it('"what tithi is today" → calendar', () => {
-    expect(classifyQuery('what tithi is today', false)).toContain('calendar');
-  });
-
-  it('"sunset in chicago" → calendar', () => {
-    expect(classifyQuery('sunset in chicago', false)).toContain('calendar');
-  });
-
-  it('"what time is sunrise" → calendar', () => {
-    expect(classifyQuery('what time is sunrise', false)).toContain('calendar');
-  });
-
-  // --- General fallback ---
-  it('"is tofu safe" → general', () => {
-    expect(classifyQuery('is tofu safe', false)).toContain('general');
-  });
-
-  it('empty text, no image → general', () => {
-    expect(classifyQuery('', false)).toContain('general');
-  });
-
-  it('null text → general', () => {
-    expect(classifyQuery(null, false)).toContain('general');
-  });
-
-  // --- Multi-type ---
-  it('"substitute for onion during my fast" → substitution + fasting', () => {
-    const result = classifyQuery('substitute for onion during my fast', false);
-    expect(result).toContain('substitution');
-    expect(result).toContain('fasting');
-  });
-
-  it('"restaurant near me, I am fasting" → restaurant + fasting', () => {
-    const result = classifyQuery('restaurant near me, I am fasting', false);
-    expect(result).toContain('restaurant');
-    expect(result).toContain('fasting');
-  });
-
-  // --- No duplicates ---
-  it('returns no duplicate keys', () => {
-    const result = classifyQuery('substitute for onion during my fast', false);
-    expect(result.length).toBe(new Set(result).size);
-  });
-});
 
 // ============================================
 // profile_update journey (classify)
