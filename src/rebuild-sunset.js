@@ -27,7 +27,9 @@ async function answerSunset(phone, user, place, intent, env) {
   }
   const sunData = formatSunDataForClaude(sunInfo);
   const system = buildSystemPrompt(user, '', sunData);
-  const reply = await callClaude([{ role: 'user', content: intent.params?.sun_date === 'tomorrow' ? 'sunset tomorrow' : 'sunset' }], system, env);
+  const kind = intent.params?.sun_kind || 'sunset';
+  const when = intent.params?.sun_date === 'tomorrow' ? ' tomorrow' : '';
+  const reply = await callClaude([{ role: 'user', content: `${kind}${when}` }], system, env);
   await sendMessage(phone, reply, env);
 }
 
