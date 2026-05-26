@@ -96,7 +96,7 @@ export async function handleRebuildFood(phone, text, user, intent, env, context)
   }
 
   // -- System prompt + Claude call -------------------------------------------
-  const system = buildSystemPrompt(user, [], calendarData, '', searchSnippets);
+  const system = buildSystemPrompt(user, calendarData, '', searchSnippets);
   const maxTokens = messageType === 'image' && isLabel ? 400 : 250;
   console.log(`[perf] claude_start=${Date.now() - t0}ms`);
   const response = await callClaude(claudeMessages, system, env, maxTokens);

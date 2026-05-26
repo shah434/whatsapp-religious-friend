@@ -4,9 +4,8 @@
 // location.js now used only by rebuild-restaurant.js
 // ============================================
 import { classify } from './src/classify.js';
-import { readPending } from './src/pending.js';
+import { readPending, serializePending } from './src/pending.js';
 import { rulesFor, rulesForNumber, FAST_MENU } from './src/fasting-rules.js';
-import { serializePending } from './src/pending.js';
 import { handleRebuildSunset, rebuildSunsetClaims } from './src/rebuild-sunset.js';
 import { handleRebuildRestaurant, rebuildRestaurantClaims } from './src/rebuild-restaurant.js';
 import { handleCityUpdate, cityUpdateClaims } from './src/rebuild-city-update.js';
@@ -43,10 +42,6 @@ async function hashPhone(phone) {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
     .slice(0, 8);
-}
-
-function logTurn(u, fields) {
-  console.log(`[turn] u=${u} ${Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(' ')}`);
 }
 
 function isBareGreeting(text) {
@@ -147,15 +142,17 @@ export default {
       }
       await env.KV.put(rlKey, String(count + 1), { expirationTtl: 86400 });
 
-      // -- Scale brake: global daily spend ceiling ($10, soft) ---------------
+      // -- Scale brake: global daily spend ceiling (soft) -------------------
+      // KV has no atomic increment, so concurrent requests can undercount.
+      // Thresholds are set conservatively; Anthropic billing alert is the real backstop.
       const spendDay = new Date().toISOString().slice(0, 10);
       const spend = parseFloat(await env.KV.get(`spend:${spendDay}`) || '0');
-      if (spend >= 10) {
+      if (spend >= 8) {
         if (messageType === 'image') {
           await sendMessage(phone, `We're at capacity for image scans today 🙏 Text questions still work.`, env);
           return new Response('OK', { status: 200 });
         }
-        if (spend >= 12) {
+        if (spend >= 10) {
           await sendMessage(phone, `We're at capacity today 🙏 Please try again tomorrow.`, env);
           return new Response('OK', { status: 200 });
         }
@@ -270,9 +267,11 @@ if (rebuildRestaurantClaims(user, rbIntent, text)) {
         // Fallback router: classify defaulted to food with no real food signal
         // → ambiguous message. Ask Haiku for the journey + city, then re-route
         // city journeys through the same handlers (pending/resume stays intact).
+        // Guard: skip if text is too short to be meaningful (avoids wasting a Haiku call).
         const ambiguous = rbIntent.journey === 'food'
           && !rbIntent.params.food_text
-          && !rbIntent.params.has_image;
+          && !rbIntent.params.has_image
+          && text.trim().length >= 3;
         if (ambiguous) {
           const r = await routeFallback(text, env);
           if (r && (r.journey === 'restaurant' || r.journey === 'sunset')) {
@@ -298,45 +297,43 @@ if (rebuildRestaurantClaims(user, rbIntent, text)) {
         }
 
         // -- Code-driven fasting (flat 1-7; option 8 → prompt) -------------
-        {
-          const fastPending = readPending(user.pending_action);
-          const reply = text.trim();
+        const fastPending = readPending(user.pending_action);
+        const reply = text.trim();
 
-          if (fastPending && fastPending.need === 'fast_pick') {
-            if (/^[1-7]$/.test(reply)) {
-              const rules = rulesForNumber(parseInt(reply, 10));
-              if (rules) {
-                await updateUser(phone, { pending_action: null }, env);
-                await sendMessage(phone, rules, env);
-                return new Response('OK', { status: 200 });
-              }
-            }
-            if (rbIntent.params.fast_term && rbIntent.params.fast_term !== 'pachkhan_general') {
-              const rules = rulesFor(rbIntent.params.fast_term);
-              if (rules) {
-                await updateUser(phone, { pending_action: null }, env);
-                await sendMessage(phone, rules, env);
-                return new Response('OK', { status: 200 });
-              }
-            }
-            if (reply === '8') {
-              await updateUser(phone, { pending_action: null }, env);
-            }
-          }
-
-          if (rbIntent.params.fast_term) {
-            const ft = rbIntent.params.fast_term;
-            if (ft === 'pachkhan_general') {
-              const rec = serializePending({ need: 'fast_pick', intent: rbIntent });
-              await updateUser(phone, { pending_action: rec }, env);
-              await sendMessage(phone, FAST_MENU, env);
-              return new Response('OK', { status: 200 });
-            }
-            const rules = rulesFor(ft);
+        if (fastPending && fastPending.need === 'fast_pick') {
+          if (/^[1-7]$/.test(reply)) {
+            const rules = rulesForNumber(parseInt(reply, 10));
             if (rules) {
+              await updateUser(phone, { pending_action: null }, env);
               await sendMessage(phone, rules, env);
               return new Response('OK', { status: 200 });
             }
+          }
+          if (rbIntent.params.fast_term && rbIntent.params.fast_term !== 'pachkhan_general') {
+            const rules = rulesFor(rbIntent.params.fast_term);
+            if (rules) {
+              await updateUser(phone, { pending_action: null }, env);
+              await sendMessage(phone, rules, env);
+              return new Response('OK', { status: 200 });
+            }
+          }
+          if (reply === '8') {
+            await updateUser(phone, { pending_action: null }, env);
+          }
+        }
+
+        if (rbIntent.params.fast_term) {
+          const ft = rbIntent.params.fast_term;
+          if (ft === 'pachkhan_general') {
+            const rec = serializePending({ need: 'fast_pick', intent: rbIntent });
+            await updateUser(phone, { pending_action: rec }, env);
+            await sendMessage(phone, FAST_MENU, env);
+            return new Response('OK', { status: 200 });
+          }
+          const rules = rulesFor(ft);
+          if (rules) {
+            await sendMessage(phone, rules, env);
+            return new Response('OK', { status: 200 });
           }
         }
 

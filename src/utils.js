@@ -36,7 +36,7 @@ export function stripTags(text) {
   return (text || '').trim();
 }
 
-export function buildSystemPrompt(user, googleResults, calendarData, sunData, searchSnippets = null) {
+export function buildSystemPrompt(user, calendarData, sunData, searchSnippets = null) {
   const rules = user.community === 'baps' ? RULES_BAPS : RULES_JAIN;
 
   // STATIC content — cached by Anthropic.
@@ -71,24 +71,15 @@ Q1: ${truncQ(user.history_3_q)} A1: ${truncA(user.history_3_a)}
 Q2: ${truncQ(user.history_2_q)} A2: ${truncA(user.history_2_a)}
 Q3: ${truncQ(user.history_1_q)} A3: ${truncA(user.history_1_a)}` : '';
 
-  const restaurantData = googleResults && googleResults.length > 0
-    ? `\nNEARBY RESTAURANT RESULTS: ${JSON.stringify(googleResults)}
-FORMATTING RULE: For each restaurant include name, address,
-phone number (nationalPhoneNumber field — always include if present in data),
-rating, and whether currently open.
-Ask staff: "Do you avoid onion and garlic in any form including powder?"
-End with: "Call ahead to confirm dietary requirements"`
-    : '';
-
   const calendar = calendarData
     ? `\nJAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}
 TITHI RULE: Never state the tithi name or that today is/isn't a tithi — that line is added separately. If today is a tithi, give ONLY a 2-line explanation of its dietary practice. Do not name it. Do NOT open with any greeting (no "Jai Jinendra", "🙏", etc.) — a greeting is already added separately.`
     : '';
 
-  const sun    = sunData       ? `\n${sunData}`       : '';
+  const sun    = sunData        ? `\n${sunData}`        : '';
   const search = searchSnippets ? `\n${searchSnippets}` : '';
 
-  const dynamicContent = profile + history + restaurantData + calendar + sun + search;
+  const dynamicContent = profile + history + calendar + sun + search;
 
   return [
     {
