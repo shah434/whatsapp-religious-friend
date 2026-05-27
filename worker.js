@@ -327,7 +327,8 @@ export default {
         const ambiguous = rbIntent.journey === 'food'
           && !rbIntent.params.food_text
           && !rbIntent.params.has_image
-          && text.trim().length >= 3
+          && text.trim().length >= 10
+          && !isShortAffirmative(40)
           && !pendingNeedsCity;
         if (ambiguous) {
           const r = await routeFallback(text, env);
@@ -387,9 +388,6 @@ export default {
               await sendMessage(phone, rules, env);
               return new Response('OK', { status: 200 });
             }
-          }
-          if (reply === '9') {
-            await updateUser(phone, { pending_action: null }, env);
           }
         }
 

@@ -29,8 +29,16 @@ function isLikelyGreeting(text) {
 export async function handleRebuildFood(phone, text, user, intent, env, context) {
   const { messageType, imagePromise, calendarEvents, t0, ctx } = context;
 
-  // -- Calendar data (3 events; food queries rarely need the full 30-day view) -
-  const calendarData = user.community === 'jain'
+  // -- Calendar data ---------------------------------------------------------
+  // Only Jain users need it, and only when the query touches fasting/tithi/today.
+  // Pure ingredient or label checks don't need upcoming events — skipping saves
+  // tokens in the dynamic prompt block (the only block that isn't prompt-cached).
+  const needsCalendar = user.community === 'jain' && (
+    intent.prompt_blocks.includes('fasting') ||
+    intent.prompt_blocks.includes('calendar') ||
+    /tithi|fast|upvas|ayambil|ekasan|biyasan|chauvihar|tivihar|navkarsi|paryushan|today/i.test(text)
+  );
+  const calendarData = needsCalendar
     ? formatEventsForClaude(calendarEvents, user.timezone, 3)
     : '';
 

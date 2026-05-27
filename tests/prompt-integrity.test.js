@@ -115,27 +115,26 @@ describe('RULES_BAPS — key differences from Jain', () => {
 });
 
 // ── USE_CASE_FASTING ─────────────────────────────────────────────────────────
-describe('USE_CASE_FASTING — Jain menu verbatim', () => {
-  // These exact strings must be present — the prompt instructs Claude to
-  // output the menu VERBATIM, so if we change the text, Claude will too.
-  it('contains menu item 1 — Upvas', () => {
-    expect(USE_CASE_FASTING).toContain('1 — Upvas (no food)');
+describe('USE_CASE_FASTING — code-driven menu note', () => {
+  // Common fasts are code-driven — Claude should be told it never sees them.
+  it('tells Claude common fasts are code-handled', () => {
+    expect(USE_CASE_FASTING).toContain('code-handled before you are called');
   });
 
-  it('contains menu item 2 — Ekasan', () => {
-    expect(USE_CASE_FASTING).toContain('2 — Ekasan (one meal before sunset)');
+  it('still contains Ekasan rules in FAST TYPE RULES', () => {
+    expect(USE_CASE_FASTING).toContain('Ekasan:');
   });
 
-  it('contains menu item 3 — Ayambil', () => {
-    expect(USE_CASE_FASTING).toContain('3 — Ayambil (bland meal, no dairy/oil)');
+  it('still contains Ayambil rules in FAST TYPE RULES', () => {
+    expect(USE_CASE_FASTING).toContain('Ayambil:');
   });
 
-  it('contains menu item 4 — Biyasan', () => {
-    expect(USE_CASE_FASTING).toContain('4 — Biyasan (two meals before sunset)');
+  it('still contains Navkarsi rules in FAST TYPE RULES', () => {
+    expect(USE_CASE_FASTING).toContain('Navkarsi:');
   });
 
-  it('contains menu item 7 — Navkarsi', () => {
-    expect(USE_CASE_FASTING).toContain('7 — Navkarsi (no food 48 min after sunrise)');
+  it('contains complex fasts sub-menu', () => {
+    expect(USE_CASE_FASTING).toContain('Time-based eating windows (Porsi');
   });
 });
 

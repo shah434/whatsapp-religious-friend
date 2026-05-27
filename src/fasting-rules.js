@@ -58,8 +58,6 @@ export const FAST_MENU = `What fast are you observing?
 
 You can also type the name of your fast, or just ask something else 🙏`;
 
-// 9 — More complex fasts
-
 // Build the full reply for a known flat fast. null if not a flat-menu fast.
 export function rulesFor(category) {
   const r = FAST_RULES[category];
