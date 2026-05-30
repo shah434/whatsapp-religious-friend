@@ -98,7 +98,12 @@ export async function getUser(phone, env) {
     }
   );
   const data = await res.json();
-  console.log(`[cache] supabase_getUser=${Date.now() - t}ms`);
+  console.log(`[cache] supabase_getUser=${Date.now() - t}ms status=${res.status}`);
+
+  if (!Array.isArray(data)) {
+    console.log(`[cache] supabase_getUser_error status=${res.status} body=${JSON.stringify(data)}`);
+    return null;
+  }
 
   const user = data[0] || null;
   if (user) await writeUserToKV(phone, user, env);
@@ -120,6 +125,10 @@ export async function createUser(phone, fields, env) {
     }
   );
   const data = await res.json();
+  console.log(`[db] createUser status=${res.status}`);
+  if (!Array.isArray(data) || !data[0]) {
+    console.log(`[db] createUser_error status=${res.status} body=${JSON.stringify(data)}`);
+  }
   const user = data[0];
   // Cache the new user immediately so their second message is a KV hit
   if (user) await writeUserToKV(phone, user, env);

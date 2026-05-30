@@ -89,6 +89,7 @@ async function saveCity(phone, user, place, env) {
 // Returns null if we don't have full saved coordinates.
 function placeFromSaved(user) {
   if (!user.city || user.latitude == null || user.longitude == null || !user.timezone) {
+    console.log(`[city] placeFromSaved null city=${user?.city} lat=${user?.latitude} lng=${user?.longitude} tz=${user?.timezone}`);
     return null;
   }
   return {

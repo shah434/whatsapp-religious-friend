@@ -25,9 +25,6 @@ const VIN_FAMILY_URL = 'https://raw.githubusercontent.com/shah434/whatsapp-relig
 const VIN_GOODBYE_URL = 'https://raw.githubusercontent.com/shah434/whatsapp-religious-friend/ad4ff7ebb697e22a7ba7abac1e0c94e4c7af3987/vin%20goodbye.png';
 const VIN_STAY_URL = 'https://raw.githubusercontent.com/shah434/whatsapp-religious-friend/403944f9447d7975e07322f8cdaca25030dc50b0/vin%20stay.png';
 
-const KV_PENDING_DELETE_PREFIX = 'pending_delete:';
-const PENDING_DELETE_TTL = 600; // 10 minutes
-
 const SILENT_DROP_TYPES = new Set([
   'reaction', 'system', 'interactive', 'button', 'unsupported', 'unknown'
 ]);
@@ -202,14 +199,22 @@ export default {
         if (isJustGreeting) {
           return new Response('OK', { status: 200 });
         }
+        // createUser failed (DB error) — welcome was sent, stop here.
+        // Don't fall through with user=undefined or everything crashes.
+        if (!user) {
+          console.log(`[db] createUser returned falsy — aborting request after welcome`);
+          return new Response('OK', { status: 200 });
+        }
         // Fall through — answer the question too
       }
 
       // -- Pending delete confirmation ---------------------------------------
-      const pendingDeleteKey = `${KV_PENDING_DELETE_PREFIX}${phone}`;
-      const pendingDelete = await env.KV.get(pendingDeleteKey);
-      if (pendingDelete && messageType === 'text') {
-        await env.KV.delete(pendingDeleteKey);
+      // Stored in pending_action (Supabase-backed) so it survives KV eventual
+      // consistency lag. Previously used a separate KV key which could be
+      // invisible to the next request if it landed on a different edge node.
+      const pendingDeleteRecord = readPending(user.pending_action);
+      if (pendingDeleteRecord?.need === 'delete_confirm' && messageType === 'text') {
+        await updateUser(phone, { pending_action: null }, env);
         if (text.trim().toUpperCase() === 'YES') {
           await deleteUser(phone, env);
           await sendImage(phone, VIN_GOODBYE_URL, "You've been removed from the family. Take care. 🙏", env);
@@ -221,7 +226,8 @@ export default {
 
       // -- "delete me" keyword -----------------------------------------------
       if (messageType === 'text' && text.trim().toLowerCase() === 'delete me') {
-        await env.KV.put(pendingDeleteKey, '1', { expirationTtl: PENDING_DELETE_TTL });
+        const rec = serializePending({ need: 'delete_confirm', intent: { journey: 'food', params: {} } });
+        await updateUser(phone, { pending_action: rec }, env);
         await sendImage(
           phone,
           VIN_FAMILY_URL,
