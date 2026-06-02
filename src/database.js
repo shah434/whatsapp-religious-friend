@@ -74,8 +74,12 @@ export async function fetchPendingAction(phone, env) {
       }
     );
     const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      console.log(`[db] fetchPendingAction status=${res.status} rows=0 — ghost user (KV stale)`);
+    if (!res.ok || !Array.isArray(data)) {
+      // HTTP error or unexpected shape — treat as fetch error, not as missing row
+      console.log(`[db] fetchPendingAction http_error status=${res.status}`);
+      return undefined;
+    }
+    if (data.length === 0) {
       return { exists: false };
     }
     const pending_action = data[0]?.pending_action ?? null;

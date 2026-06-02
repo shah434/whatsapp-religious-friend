@@ -187,10 +187,13 @@ export default {
       if (freshPending === undefined) {
         // fetch errored — keep whatever KV has
       } else if (freshPending && !freshPending.exists) {
-        // Ghost user: KV has stale data, Supabase row is gone
-        console.log(`[db] ghost_user phone detected — clearing KV and re-creating`);
-        try { await env.KV.delete(`user:${phone}`); } catch {}
-        user = null; // falls into new-user creation below
+        if (user) {
+          // Ghost user: KV had stale data but Supabase row is gone — evict and re-create
+          console.log(`[db] ghost_user phone detected — clearing KV and re-creating`);
+          try { await env.KV.delete(`user:${phone}`); } catch {}
+          user = null; // falls into new-user creation below
+        }
+        // else: genuinely new user — user is already null, nothing to evict
       } else if (freshPending && freshPending.exists && user) {
         user.pending_action = freshPending.pending_action;
       }
