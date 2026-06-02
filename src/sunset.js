@@ -131,7 +131,9 @@ export async function getSunForPlace(place, date = null) {
       city: displayCity,
       sunrise,
       sunset,
-      timezoneId: place.timezone
+      timezoneId: place.timezone,
+      date: dateStr,          // 'YYYY-MM-DD' — tells Claude which day these times are for
+      isToday: date !== 'tomorrow',
     };
 
   } catch (err) {
@@ -190,9 +192,11 @@ function formatTime(utcString, timezoneId) {
 
 export function formatSunDataForClaude(sunData) {
   if (!sunData) return '';
+  const dayLabel = sunData.isToday ? 'TODAY' : 'TOMORROW';
   return `
 ========================================
 EXACT SUNRISE/SUNSET DATA FOR THIS REPLY:
+Date: ${dayLabel} (${sunData.date})
 City: ${sunData.city}
 Sunrise: ${sunData.sunrise}
 Sunset: ${sunData.sunset}
