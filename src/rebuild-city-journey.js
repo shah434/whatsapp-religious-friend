@@ -191,6 +191,14 @@ export async function handleCityJourney(phone, text, user, intent, env, journey)
   // to true (use saved city to answer sunset/restaurant without re-asking).
   const saved = placeFromSaved(user);
   if (saved && journey.fallbackToSaved !== false) {
+    // Clear any stale pending from a previous journey before answering.
+    // The new-city path clears it via saveCity; this path skips saveCity so
+    // we must clear explicitly — otherwise a dangling 'strictness' or other
+    // pending can intercept the user's next reply.
+    if (user.pending_action) {
+      await updateUser(phone, { pending_action: null }, env);
+      user.pending_action = null;
+    }
     await journey.answer(phone, user, saved, intent, env);
     return true;
   }
