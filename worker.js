@@ -443,6 +443,15 @@ export default {
           await updateUser(phone, { pending_action: null }, env);
           user.pending_action = null;
         }
+
+        // -- Orphaned bare number ---------------------------------------------
+        // User typed "1", "2", etc. but no pending matched (e.g. picker expired
+        // after a long gap). Sending to Claude gives a confusing generic reply.
+        // Ask them to re-state instead.
+        if (/^[1-9]$/.test(text.trim()) && messageType === 'text') {
+          await sendMessage(phone, `What would you like help with? 🙏🏾`, env);
+          return new Response('OK', { status: 200 });
+        }
       }
 
       // -- Food / image catch-all --------------------------------------------

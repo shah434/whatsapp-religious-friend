@@ -119,6 +119,22 @@ export async function handleCityJourney(phone, text, user, intent, env, journey)
       // Non-numeric or out-of-range — try resolving as a fresh city name.
       // e.g. user typed "columbus, oh" or "new york" instead of picking a number.
       if (!n && reply.length >= 2) {
+        // First: fuzzy-match against the existing choices so "Columbus Ohio USA"
+        // doesn't re-geocode into another ambiguous list when the answer is
+        // already in the list in front of them.
+        const norm = reply.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ');
+        const fuzzyMatch = pending.choices.find(c => {
+          const name = (c.name || '').toLowerCase();
+          const admin = (c.admin1 || '').toLowerCase();
+          const country = (c.country || '').toLowerCase();
+          return norm.includes(name) && (admin === '' || norm.includes(admin) || norm.includes(country));
+        });
+        if (fuzzyMatch) {
+          await saveCity(phone, user, fuzzyMatch, env);
+          await journey.answer(phone, user, fuzzyMatch, pending.intent, env);
+          return true;
+        }
+
         const res = await resolveLocation(reply);
         if (res.status === 'resolved') {
           await saveCity(phone, user, res.place, env);
