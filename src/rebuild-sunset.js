@@ -13,7 +13,7 @@ import { cityJourneyClaims, handleCityJourney } from './rebuild-city-journey.js'
 import { getSunForPlace, formatSunDataForClaude } from './sunset.js';
 import { sendMessage } from './whatsapp.js';
 import { callClaude } from './claude.js';
-import { buildSystemPrompt, buildHistoryMessages } from './utils.js';
+import { buildSystemPrompt, buildHistoryMessages, buildHistoryUpdate } from './utils.js';
 import { serializePending } from './pending.js';
 import { updateUser } from './database.js';
 
@@ -31,17 +31,18 @@ async function answerSunset(phone, user, place, intent, env) {
   const system = buildSystemPrompt(user, '', sunData);
   const kind = intent.params?.sun_kind || 'sunset';
   const when = intent.params?.sun_date === 'tomorrow' ? ' tomorrow' : '';
-  const reply = await callClaude([...buildHistoryMessages(user), { role: 'user', content: `${kind}${when}` }], system, env);
+  const reply = await callClaude([...buildHistoryMessages(user), { role: 'user', content: `${kind}${when}` }], system, env, 150);
   await sendMessage(phone, reply, env);
 
-  // Offer a tithi check after today's sunset (Jain only, not for tomorrow queries).
-  // Stores a pending so "yes/yea/sure" on the next turn routes to answerTithi.
+  // Save history + offer tithi check in parallel (both are post-send, non-blocking).
+  const question = intent.params?.original_text || `${kind}${when}`;
+  const historyUpdate = buildHistoryUpdate(user, question, reply);
+
   if (user.community !== 'baps' && !intent.params?.sun_date) {
     const rec = serializePending({ need: 'tithi_followup', intent: { journey: 'tithi', params: {} } });
-    if (rec) {
-      await updateUser(phone, { pending_action: rec }, env);
-      console.log(`[sunset] tithi_followup pending set phone=${phone}`);
-    }
+    if (rec) await updateUser(phone, { ...historyUpdate, pending_action: rec }, env);
+  } else {
+    await updateUser(phone, historyUpdate, env);
   }
 }
 

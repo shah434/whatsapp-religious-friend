@@ -186,17 +186,13 @@ export async function updateUser(phone, fields, env) {
         apikey: env.SUPABASE_KEY,
         Authorization: `Bearer ${env.SUPABASE_KEY}`,
         'Content-Type': 'application/json',
-        Prefer: 'return=representation'
       },
       body: JSON.stringify(fields)
     }
   );
-  const patchBody = await patchRes.json().catch(() => null);
-  const rowsUpdated = Array.isArray(patchBody) ? patchBody.length : '?';
   if (!patchRes.ok) {
-    console.log(`[db] updateUser_error status=${patchRes.status} fields=${JSON.stringify(Object.keys(fields))} body=${JSON.stringify(patchBody)?.slice(0,200)}`);
-  } else {
-    console.log(`[db] updateUser_ok status=${patchRes.status} fields=${JSON.stringify(Object.keys(fields))} rows=${rowsUpdated}`);
+    const errBody = await patchRes.text();
+    console.log(`[db] updateUser_error status=${patchRes.status} fields=${JSON.stringify(Object.keys(fields))} body=${errBody.slice(0,200)}`);
   }
 
   // 2. Merge fields into KV cache (best effort — non-fatal on failure)

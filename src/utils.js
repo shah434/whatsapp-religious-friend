@@ -52,6 +52,22 @@ export function buildHistoryMessages(user) {
   return messages;
 }
 
+// Builds the fields object to pass to updateUser for history rotation.
+// Call after every Claude response so all journeys save history.
+export function buildHistoryUpdate(user, question, answer) {
+  const q = (question || '').slice(0, 500);
+  const a = (answer || '').slice(0, 500);
+  return {
+    history_1_q: q,
+    history_1_a: a,
+    history_2_q: user.history_1_q || '',
+    history_2_a: user.history_1_a || '',
+    history_3_q: user.history_2_q || '',
+    history_3_a: user.history_2_a || '',
+    message_count: (user.message_count || 0) + 1,
+  };
+}
+
 export function stripTags(text) {
   return (text || '').trim();
 }

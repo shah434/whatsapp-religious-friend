@@ -165,6 +165,13 @@ export default {
         void sendMessage(phone, 'Reviewing your request... 🔍', env);
       }
 
+      // -- Classify early (sync) so Phase 1 can skip fetchPendingAction ------
+      // Fresh journeys (sunset, restaurant, tithi, etc.) always win over any
+      // pending — no need to pay for a Supabase read to confirm it. Only
+      // food-classified messages (potential bare replies) need fresh pending.
+      const rbIntent = classify(text, messageType === 'image');
+      const needsFreshPending = rbIntent.journey === 'food';
+
       // -- Phase 1: Parallel I/O ---------------------------------------------
       const imagePromise = messageType === 'image'
         ? getImageAsBase64(message.image.id, message.image.mime_type, env)
@@ -176,7 +183,9 @@ export default {
         sendReaction(phone, messageId, env),
         getUser(phone, env),
         getCalendarCached(env),
-        fetchPendingAction(phone, env),  // always-fresh Supabase read, runs in parallel
+        needsFreshPending
+          ? fetchPendingAction(phone, env)
+          : Promise.resolve(undefined),  // skip for fresh journeys
       ]);
 
       // Reconcile Supabase vs KV:
@@ -196,6 +205,13 @@ export default {
         // else: genuinely new user — user is already null, nothing to evict
       } else if (freshPending && freshPending.exists && user) {
         user.pending_action = freshPending.pending_action;
+      } else if (freshPending === undefined && !needsFreshPending) {
+        // Fresh journey — fetchPendingAction was skipped. Clear any stale
+        // pending from KV in the background so it can't intercept future replies.
+        if (user?.pending_action) {
+          ctx.waitUntil(updateUser(phone, { pending_action: null }, env));
+          user.pending_action = null;
+        }
       }
 
       console.log(`[perf] phase1_parallel=${Date.now() - t0}ms type=${messageType}`);
@@ -267,7 +283,6 @@ export default {
       }
 
       // -- REBUILD: classify → journey handlers ----------------------------------
-      let rbIntent = classify(text, messageType === 'image');
       if (messageType === 'text') {
         if (rebuildSunsetClaims(user, rbIntent, text)) {
           const handled = await handleRebuildSunset(phone, text, user, rbIntent, env);

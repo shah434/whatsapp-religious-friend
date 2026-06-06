@@ -198,6 +198,9 @@ export async function handleCityJourney(phone, text, user, intent, env, journey)
   }
 
   // ---- FRESH request ---------------------------------------------------------
+  // Preserve original text so journey.answer() can save it to history.
+  if (!intent.params.original_text) intent.params.original_text = text;
+
   const cityRaw = intent.params.city_raw || null;
 
   if (cityRaw) {

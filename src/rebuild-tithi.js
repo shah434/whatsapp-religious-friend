@@ -6,7 +6,7 @@ import { cityJourneyClaims, handleCityJourney } from './rebuild-city-journey.js'
 import { getCalendarCached, formatEventsForClaude } from './calendar.js';
 import { callClaude } from './claude.js';
 import { sendMessage } from './whatsapp.js';
-import { buildSystemPrompt, buildHistoryMessages } from './utils.js';
+import { buildSystemPrompt, buildHistoryMessages, buildHistoryUpdate } from './utils.js';
 import { serializePending } from './pending.js';
 import { updateUser } from './database.js';
 
@@ -58,11 +58,15 @@ async function answerTithi(phone, user, place, intent, env) {
 
   await sendMessage(phone, tithiFact + response, env);
 
-  // Set pending whenever Claude ended with a question so a short reply
-  // ("yes", "sure") is handled with context rather than getting lost.
+  // Save history + optionally set followup pending in one write.
+  const historyUpdate = buildHistoryUpdate(user, question, tithiFact + response);
+
   if (response.trimEnd().endsWith('?') || needsFull) {
     const rec = serializePending({ need: 'tithi_food_followup', intent: { journey: 'tithi', params: {} } });
-    if (rec) await updateUser(phone, { pending_action: rec }, env);
+    if (rec) await updateUser(phone, { ...historyUpdate, pending_action: rec }, env);
+    else await updateUser(phone, historyUpdate, env);
+  } else {
+    await updateUser(phone, historyUpdate, env);
   }
 }
 
