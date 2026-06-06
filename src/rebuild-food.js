@@ -5,7 +5,7 @@ import { formatEventsForClaude } from './calendar.js';
 import { callClaude } from './claude.js';
 import { sendMessage } from './whatsapp.js';
 import { updateUser } from './database.js';
-import { buildSystemPrompt, stripTags } from './utils.js';
+import { buildSystemPrompt, buildHistoryMessages, stripTags } from './utils.js';
 import { identifyProduct, searchProductIngredients } from './search.js';
 import { serializePending, readPending } from './pending.js';
 import { getStrictnessQuestion } from './onboarding.js';
@@ -100,7 +100,7 @@ export async function handleRebuildFood(phone, text, user, intent, env, context)
       return true;
     }
   } else {
-    claudeMessages = [{ role: 'user', content: text }];
+    claudeMessages = [...buildHistoryMessages(user), { role: 'user', content: text }];
   }
 
   // -- System prompt + Claude call -------------------------------------------

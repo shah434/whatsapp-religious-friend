@@ -6,7 +6,7 @@ import { cityJourneyClaims, handleCityJourney } from './rebuild-city-journey.js'
 import { getCalendarCached, formatEventsForClaude } from './calendar.js';
 import { callClaude } from './claude.js';
 import { sendMessage } from './whatsapp.js';
-import { buildSystemPrompt } from './utils.js';
+import { buildSystemPrompt, buildHistoryMessages } from './utils.js';
 import { serializePending } from './pending.js';
 import { updateUser } from './database.js';
 
@@ -36,7 +36,7 @@ async function answerTithi(phone, user, place, intent, env) {
 
   // Use the original user question stored in intent params
   const question = intent.params?.original_text || 'What tithi is today?';
-  let response = await callClaude([{ role: 'user', content: question }], system, env, 200);
+  let response = await callClaude([...buildHistoryMessages(user), { role: 'user', content: question }], system, env, 200);
 
   // Strip calendar markers
   response = response

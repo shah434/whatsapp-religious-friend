@@ -32,6 +32,26 @@ const ALL_USE_CASES =
   USE_CASE_FASTING +
   USE_CASE_CALENDAR;
 
+// Returns history as real conversation turns (oldest first) for the messages
+// array. The caller appends the current user message at the end.
+// Using real turns gives Claude proper multi-turn context vs flat text in the
+// system prompt.
+export function buildHistoryMessages(user) {
+  const messages = [];
+  const pairs = [
+    [user.history_3_q, user.history_3_a],
+    [user.history_2_q, user.history_2_a],
+    [user.history_1_q, user.history_1_a],
+  ];
+  for (const [q, a] of pairs) {
+    if (q && a) {
+      messages.push({ role: 'user', content: q });
+      messages.push({ role: 'assistant', content: a });
+    }
+  }
+  return messages;
+}
+
 export function stripTags(text) {
   return (text || '').trim();
 }
@@ -62,15 +82,6 @@ Observance: ${user.observance || 'none'}
 City: ${user.city || 'not set'}
 Today's date: ${today}`;
 
-  // History — skip entirely for first-turn users.
-  const truncQ = (s) => s && s.length > 80  ? s.slice(0, 80)  + '…' : (s || '');
-  const truncA = (s) => s && s.length > 250 ? s.slice(0, 250) + '…' : (s || '');
-  const history = user.history_1_q ? `
-CONVERSATION HISTORY (most recent last):
-Q1: ${truncQ(user.history_3_q)} A1: ${truncA(user.history_3_a)}
-Q2: ${truncQ(user.history_2_q)} A2: ${truncA(user.history_2_a)}
-Q3: ${truncQ(user.history_1_q)} A3: ${truncA(user.history_1_a)}` : '';
-
   const calendar = calendarData
     ? `\nJAIN CALENDAR — NEXT 30 DAYS:\n${calendarData}
 TITHI RULE: Never state the tithi name or that today is/isn't a tithi — that line is added separately. If today is a tithi, give ONLY a 2-line explanation of its dietary practice. Do not name it. Do NOT open with any greeting (no "Jai Jinendra", "🙏🏾", etc.) — a greeting is already added separately.`
@@ -79,7 +90,7 @@ TITHI RULE: Never state the tithi name or that today is/isn't a tithi — that l
   const sun    = sunData        ? `\n${sunData}`        : '';
   const search = searchSnippets ? `\n${searchSnippets}` : '';
 
-  const dynamicContent = profile + history + calendar + sun + search;
+  const dynamicContent = profile + calendar + sun + search;
 
   return [
     {

@@ -13,7 +13,7 @@ import { cityJourneyClaims, handleCityJourney } from './rebuild-city-journey.js'
 import { getSunForPlace, formatSunDataForClaude } from './sunset.js';
 import { sendMessage } from './whatsapp.js';
 import { callClaude } from './claude.js';
-import { buildSystemPrompt } from './utils.js';
+import { buildSystemPrompt, buildHistoryMessages } from './utils.js';
 import { serializePending } from './pending.js';
 import { updateUser } from './database.js';
 
@@ -31,7 +31,7 @@ async function answerSunset(phone, user, place, intent, env) {
   const system = buildSystemPrompt(user, '', sunData);
   const kind = intent.params?.sun_kind || 'sunset';
   const when = intent.params?.sun_date === 'tomorrow' ? ' tomorrow' : '';
-  const reply = await callClaude([{ role: 'user', content: `${kind}${when}` }], system, env);
+  const reply = await callClaude([...buildHistoryMessages(user), { role: 'user', content: `${kind}${when}` }], system, env);
   await sendMessage(phone, reply, env);
 
   // Offer a tithi check after today's sunset (Jain only, not for tomorrow queries).
