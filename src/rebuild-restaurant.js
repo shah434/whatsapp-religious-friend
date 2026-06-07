@@ -87,11 +87,12 @@ async function answerRestaurant(phone, user, place, intent, env) {
     }
   }
 
-  // If we just showed the invite, arm a one-time city pending so the next
-  // location pin immediately re-runs this same restaurant search near the pin —
-  // without the user having to type "restaurants near me" again.
-  // _pin_refine=true on the stored intent prevents the invite from repeating.
-  if (usedSavedCity) {
+  // Always arm a one-time city pending after restaurant results.
+  // If the user shares a location pin (whether or not we showed the invite),
+  // the search re-runs near the pin immediately without them having to retype.
+  // _pin_refine=true on the stored intent prevents the invite from appearing
+  // on the pin-based result, breaking any potential loop.
+  if (!intent.params?._pin_refine) {
     const oneTimeIntent = { ...intent, params: { ...intent.params, _pin_refine: true } };
     const rec = serializePending({ need: 'city', intent: oneTimeIntent });
     if (rec) await updateUser(phone, { pending_action: rec }, env);
