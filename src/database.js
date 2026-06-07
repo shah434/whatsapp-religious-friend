@@ -176,6 +176,17 @@ export async function setFlagKV(phone, fields, env) {
   return mergeUserKVOnly(phone, fields, env);
 }
 
+// Invalidate the KV cache entry for a user, forcing the next getUser to
+// read fresh data from Supabase. Use after writes where KV consistency
+// matters (e.g. city saves) to avoid stale reads on other edge nodes.
+export async function invalidateUserKV(phone, env) {
+  try {
+    await env.KV.delete(`${KV_USER_PREFIX}${phone}`);
+  } catch (err) {
+    console.log(`[cache] kv_invalidate_error phone=${phone} err=${err.message}`);
+  }
+}
+
 export async function updateUser(phone, fields, env) {
   // 1. Supabase first — source of truth
   const patchRes = await fetch(

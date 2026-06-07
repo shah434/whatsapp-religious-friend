@@ -22,7 +22,7 @@ import { resolveLocation, formatCandidatePicker } from './resolveLocation.js';
 import { reverseGeocode } from './reverseGeocode.js';
 import { serializePending, readPending } from './pending.js';
 import { sendMessage } from './whatsapp.js';
-import { updateUser } from './database.js';
+import { updateUser, invalidateUserKV } from './database.js';
 
 // Does the new path own this turn for the given journey name?
 //
@@ -88,6 +88,11 @@ async function saveCity(phone, user, place, env) {
   user.latitude = place.latitude;
   user.longitude = place.longitude;
   user.pending_action = null;
+  // Invalidate KV so the next request reads fresh Supabase data.
+  // updateUser does a read-modify-write on KV; a subsequent updateUser call
+  // (e.g. answerSunset writing history) may read stale KV and silently drop
+  // the city fields. Deleting the entry forces a clean Supabase read next turn.
+  await invalidateUserKV(phone, env);
 }
 
 // Reconstruct a place from the user's saved coords (no re-geocode).
@@ -136,13 +141,18 @@ export async function handleCityJourney(phone, text, user, intent, env, journey)
       user.timezone = place.timezone;
       user.latitude = place.latitude;
       user.longitude = place.longitude;
+      await invalidateUserKV(phone, env);
       await sendMessage(phone, `Got it — updated your location to ${display} 🙏🏾`, env);
     }
     return true;
   }
 
   // ---- RESUME: we previously asked this user for a city ----------------------
-  if (pending && pending.intent.journey === journey.name && isBareReply(text)) {
+  // Guard: only resume on actual city-resolution needs. Other pending types
+  // (tithi_followup, food_followup, etc.) share intent.journey with city journeys
+  // but are NOT city asks — isBareReply("tithi") would otherwise geocode the word.
+  const CITY_NEEDS = new Set(['city', 'city_pick']);
+  if (pending && pending.intent.journey === journey.name && CITY_NEEDS.has(pending.need) && isBareReply(text)) {
     const reply = (text || '').trim();
 
     // Resume A: numbered pick from a city_pick list.
