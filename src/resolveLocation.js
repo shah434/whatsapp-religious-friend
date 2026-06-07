@@ -183,5 +183,5 @@ export function formatCandidatePicker(cityRaw, candidates) {
     `${i + 1} — ${c.name}${c.admin1 ? ', ' + c.admin1 : ''}${c.country ? ', ' + c.country : ''}`
   ).join('\n');
   return `I found a few places called "${cityRaw}". Which one?\n\n${lines}\n\n` +
-    `Reply with the number — or if yours isn't listed, type the city with its state or country.`;
+    `Reply with the number — or type a more specific name, e.g. *Columbus, Ohio* or *Columbus, GA*.`;
 }

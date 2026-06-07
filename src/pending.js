@@ -55,7 +55,7 @@ export function serializePending({ need, intent, choices }) {
     }
   }
 
-  const record = { need, intent };
+  const record = { need, intent, created_at: Date.now() };
   if (need === 'city_pick') record.choices = choices;
 
   try {
@@ -104,6 +104,25 @@ export function readPending(storedValue) {
 
   const clean = { need: parsed.need, intent: parsed.intent };
   if (parsed.need === 'city_pick') clean.choices = parsed.choices;
+
+  // Expire stale records so ghost pending can't intercept unrelated messages.
+  const TTL_MS = {
+    delete_confirm:      10 * 60 * 1000,        // 10 min — high stakes
+    fast_pick:           30 * 60 * 1000,         // 30 min
+    upvas_pick:          30 * 60 * 1000,
+    tithi_followup:      30 * 60 * 1000,
+    tithi_food_followup: 30 * 60 * 1000,
+    food_followup:       30 * 60 * 1000,
+    strictness:          7 * 24 * 60 * 60 * 1000, // 7 days
+    city:                7 * 24 * 60 * 60 * 1000,
+    city_pick:           7 * 24 * 60 * 60 * 1000,
+  };
+  const ttl = TTL_MS[clean.need];
+  if (ttl && parsed.created_at && (Date.now() - parsed.created_at) > ttl) {
+    console.log(`[pending] event=expired need=${clean.need} age_ms=${Date.now() - parsed.created_at}`);
+    return null;
+  }
+
   return clean;
 }
 

@@ -524,7 +524,14 @@ export default {
             }
             const rules = rulesFor(ft);
             if (rules) {
-              await sendMessage(phone, rules, env);
+              // If the user asked an open-ended food question ("what can I eat
+              // during X?"), teach them how to get a per-food verdict too —
+              // saves a confused follow-up message.
+              const openEndedFood = /\b(what (can|should|am i allowed to) (i )?(eat|have|drink)|what'?s allowed|what foods?|which foods?|what to eat)\b/i;
+              const prefix = openEndedFood.test(text)
+                ? `Here are the ${ft} rules. To check a specific food, just ask — e.g. *"can I have dal during ${ft}?"* 🙏🏾\n\n`
+                : '';
+              await sendMessage(phone, prefix + rules, env);
               return new Response('OK', { status: 200 });
             }
           }

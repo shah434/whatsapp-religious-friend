@@ -175,9 +175,9 @@ describe('formatCandidatePicker', () => {
     expect(out).toContain('2 — London, Ontario, Canada');
   });
 
-  it('includes the add-state/country nudge', () => {
+  it('includes the format example nudge', () => {
     const out = formatCandidatePicker('London', candidates);
-    expect(out.toLowerCase()).toContain("if yours isn't listed");
+    expect(out.toLowerCase()).toContain('type a more specific name');
   });
 
   it('handles a candidate missing admin1', () => {
