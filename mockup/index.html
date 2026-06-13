@@ -70,7 +70,7 @@
     /* ── HERO ── */
     .hero {
       background: linear-gradient(160deg, #F8F0E5 0%, #ECD9C0 35%, #D9BC9A 70%, #C9A87A 100%);
-      padding: 100px 48px 80px;
+      padding: 72px 48px 56px;
       text-align: center;
       position: relative;
       overflow: hidden;
@@ -115,13 +115,13 @@
       color: #2563EB;
       letter-spacing: 0.3px;
       line-height: 1.6;
-      margin-bottom: 28px !important;
+      margin-bottom: 16px !important;
     }
     .hero p {
       font-size: 1.1rem;
       color: var(--muted);
       max-width: 500px;
-      margin: 0 auto 40px;
+      margin: 0 auto 28px;
       line-height: 1.7;
     }
     .hero-btn {
@@ -144,7 +144,7 @@
     /* ── FEATURES ── */
     .features {
       background: var(--sand);
-      padding: 80px 48px;
+      padding: 56px 48px;
     }
     .section-label {
       text-align: center;
@@ -161,7 +161,7 @@
       font-size: clamp(1.8rem, 3vw, 2.6rem);
       text-align: center;
       color: var(--espresso);
-      margin-bottom: 56px;
+      margin-bottom: 36px;
     }
     .cards {
       display: flex;
@@ -182,12 +182,18 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(61,43,31,0.14); }
-    .card-img {
+    .card-img-wrap {
       width: 320px;
       min-width: 320px;
       flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-img {
+      position: relative;
+      flex: 1;
       background: #0d0d0d;
-      border-radius: 20px 0 0 20px;
+      border-radius: 20px 0 0 0;
       overflow: hidden;
     }
     .card-img .demo-screenshot {
@@ -195,8 +201,40 @@
       height: auto;
       display: block;
     }
+    .try-it-caption {
+      background: #0d0d0d;
+      border-radius: 0 0 0 20px;
+      padding: 10px 14px 12px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .try-it-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      width: fit-content;
+    }
+    .try-it-bubble {
+      background: #005c4b;
+      color: #e9ffef;
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 6px 11px;
+      border-radius: 12px 12px 12px 3px;
+      line-height: 1.4;
+      letter-spacing: 0.1px;
+    }
+    .try-it-cta {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #25D366;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .try-it-link:hover .try-it-bubble { background: #006d5b; }
+    .try-it-link:hover .try-it-cta { color: #4ade80; }
     .card-body {
-      padding: 36px 32px;
+      padding: 28px 32px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -217,7 +255,7 @@
     /* ── SAMTA MEANING ── */
     .samta-meaning {
       background: var(--terracotta);
-      padding: 64px 48px;
+      padding: 48px 48px;
       text-align: center;
     }
     .samta-meaning .section-label { color: rgba(255,255,255,0.6); margin-bottom: 20px; }
@@ -239,7 +277,7 @@
     /* ── STORY ── */
     .story {
       background: var(--cream);
-      padding: 90px 48px;
+      padding: 64px 48px;
       text-align: center;
     }
     .story .section-label { color: var(--terracotta); }
@@ -280,7 +318,7 @@
     /* ── CLOSING CTA ── */
     .closing-cta {
       background: var(--sand);
-      padding: 90px 48px;
+      padding: 64px 48px;
       text-align: center;
     }
     .closing-cta h2 {
@@ -360,7 +398,11 @@
       flex-direction: column;
       align-items: center;
       gap: 8px;
+      text-decoration: none;
+      transition: opacity 0.2s;
     }
+    .founder-photo-wrap:hover { opacity: 0.75; }
+    .founder-photo-wrap:hover .founder-photo { box-shadow: 0 4px 16px rgba(61,43,31,0.25); }
     .founder-photo {
       width: 72px;
       height: 72px;
@@ -409,6 +451,26 @@
       border-radius: 50%;
       border: 2px solid white;
     }
+
+    /* ── PLAY BUTTON ── */
+    .play-btn {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 64px; height: 64px;
+      background: rgba(16, 44, 87, 0.75);
+      border: 2px solid rgba(255,255,255,0.6);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.25s, transform 0.2s, background 0.2s;
+      z-index: 2;
+    }
+    .play-btn svg { width: 28px; height: 28px; margin-left: 3px; }
+    .play-btn:hover { background: rgba(16, 44, 87, 0.95); transform: translate(-50%, -50%) scale(1.08); }
+    .play-btn.hidden { opacity: 0; pointer-events: none; }
 
     /* ── SCROLL REVEAL ── */
     .reveal {
@@ -465,10 +527,12 @@
       .hero { padding: 70px 24px 60px; }
       .features { padding: 60px 20px; }
       .card { flex-direction: column; }
-      .card-img {
+      .card-img-wrap {
         width: 100%;
         min-width: unset;
-        height: 320px;
+      }
+      .card-img {
+        height: 300px;
         border-radius: 20px 20px 0 0;
       }
       .card-img .demo-screenshot {
@@ -476,6 +540,9 @@
         height: 100%;
         object-fit: cover;
         object-position: top;
+      }
+      .try-it-caption {
+        border-radius: 0;
       }
       .card-body { padding: 24px; }
       .story { padding: 70px 24px; }
@@ -492,7 +559,7 @@
   <!-- NAV -->
   <nav>
     <div class="logo">Samta</div>
-    <a href="https://wa.me/1234567890" class="nav-cta" target="_blank" rel="noopener">
+    <a href="https://wa.me/19387770555" class="nav-cta" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.525 5.847L.057 23.882l6.197-1.448A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.374l-.359-.214-3.68.859.925-3.585-.234-.368A9.79 9.79 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
       Talk to Samta on WhatsApp
     </a>
@@ -504,7 +571,7 @@
     <h1>Samta</h1>
     <p class="hero-tagline">Your daily Jain helper,<br/>to make Jain living easier.</p>
     <p>Ask Samta anything Jain — from food labels and fasting days to pachakhan and sunset times — and get simple answers that guide your day.</p>
-    <a href="https://wa.me/1234567890" class="hero-btn" target="_blank" rel="noopener">
+    <a href="https://wa.me/19387770555" class="hero-btn" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.525 5.847L.057 23.882l6.197-1.448A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.374l-.359-.214-3.68.859.925-3.585-.234-.368A9.79 9.79 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
       Talk to Samta on WhatsApp
     </a>
@@ -516,10 +583,19 @@
     <h2 class="section-title">How Samta can help</h2>
     <div class="cards">
       <div class="card reveal">
-        <div class="card-img">
-          <video class="demo-screenshot" autoplay loop muted playsinline preload="none" data-src="Image.mp4">
-            <source data-src="Image.mp4" type="video/mp4" />
-          </video>
+        <div class="card-img-wrap">
+          <div class="card-img">
+            <video class="demo-screenshot" muted playsinline preload="none" data-src="Image.mp4" poster="Image-poster.jpg">
+              <source data-src="Image.mp4" type="video/mp4" />
+            </video>
+            <button class="play-btn" aria-label="Play demo"><svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+          <div class="try-it-caption">
+            <a class="try-it-link" href="https://wa.me/19387770555?text=Hi%20Samta%21%20Can%20you%20check%20if%20this%20food%20is%20Jain-safe%3F" target="_blank" rel="noopener">
+              <span class="try-it-bubble">Is this food Jain-safe? 🙏</span>
+              <span class="try-it-cta">Try it →</span>
+            </a>
+          </div>
         </div>
         <div class="card-body">
           <h3>Check if your food is Jain-friendly</h3>
@@ -527,10 +603,19 @@
         </div>
       </div>
       <div class="card reveal">
-        <div class="card-img">
-          <video class="demo-screenshot" autoplay loop muted playsinline preload="none" data-src="Fast.mp4">
-            <source data-src="Fast.mp4" type="video/mp4" />
-          </video>
+        <div class="card-img-wrap">
+          <div class="card-img">
+            <video class="demo-screenshot" muted playsinline preload="none" data-src="Fast.mp4" poster="Fast-poster.jpg">
+              <source data-src="Fast.mp4" type="video/mp4" />
+            </video>
+            <button class="play-btn" aria-label="Play demo"><svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+          <div class="try-it-caption">
+            <a class="try-it-link" href="https://wa.me/19387770555?text=Is%20today%20a%20fast%20day%3F" target="_blank" rel="noopener">
+              <span class="try-it-bubble">Is today a fast day? 🌙</span>
+              <span class="try-it-cta">Try it →</span>
+            </a>
+          </div>
         </div>
         <div class="card-body">
           <h3>Plan your fasts</h3>
@@ -538,10 +623,19 @@
         </div>
       </div>
       <div class="card reveal">
-        <div class="card-img">
-          <video class="demo-screenshot" autoplay loop muted playsinline preload="none" data-src="Restaurant.mp4">
-            <source data-src="Restaurant.mp4" type="video/mp4" />
-          </video>
+        <div class="card-img-wrap">
+          <div class="card-img">
+            <video class="demo-screenshot" muted playsinline preload="none" data-src="Restaurant.mp4" poster="Restaurant-poster.jpg">
+              <source data-src="Restaurant.mp4" type="video/mp4" />
+            </video>
+            <button class="play-btn" aria-label="Play demo"><svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+          <div class="try-it-caption">
+            <a class="try-it-link" href="https://wa.me/19387770555?text=Find%20Jain-friendly%20restaurants%20near%20me" target="_blank" rel="noopener">
+              <span class="try-it-bubble">Find Jain restaurants near me 📍</span>
+              <span class="try-it-cta">Try it →</span>
+            </a>
+          </div>
         </div>
         <div class="card-body">
           <h3>Find Jain-friendly places nearby</h3>
@@ -568,14 +662,14 @@
     <p>We know living by these values isn't always easy. That's why we're here. Whether you're vegan, vegetarian, or simply trying to be more intentional about how you live your life — we hope this makes that journey a little easier.</p>
     <p class="story-sig">Love,<br/>Anish and Parth</p>
     <div class="founder-photos">
-      <div class="founder-photo-wrap">
-        <img src="anish.png" alt="Anish" class="founder-photo" loading="lazy" decoding="async" />
+      <a href="https://www.linkedin.com/in/anish-shah-product/" target="_blank" rel="noopener" class="founder-photo-wrap">
+        <img src="Anish.png" alt="Anish" class="founder-photo" loading="lazy" decoding="async" />
         <span class="founder-name">Anish</span>
-      </div>
-      <div class="founder-photo-wrap">
+      </a>
+      <a href="https://www.linkedin.com/in/parth-k-shah/" target="_blank" rel="noopener" class="founder-photo-wrap">
         <img src="Parth.png" alt="Parth" class="founder-photo" loading="lazy" decoding="async" />
         <span class="founder-name">Parth</span>
-      </div>
+      </a>
     </div>
   </section>
 
@@ -583,7 +677,7 @@
   <section class="closing-cta reveal">
     <h2>Ready? Ask anything.</h2>
     <p style="margin-bottom: 20px;">Nothing to download. No sign-up.</p>
-    <a href="https://wa.me/1234567890" class="hero-btn" target="_blank" rel="noopener">
+    <a href="https://wa.me/19387770555" class="hero-btn" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.525 5.847L.057 23.882l6.197-1.448A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.374l-.359-.214-3.68.859.925-3.585-.234-.368A9.79 9.79 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
       Talk to Samta on WhatsApp
     </a>
@@ -595,12 +689,12 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <div class="logo">Samta</div>
-        <p>Your daily Jain helper on WhatsApp.</p>
+        <p>Your daily Jain helper,<br>to make Jain living easier.</p>
       </div>
       <div class="footer-col">
         <h4>Spread the word</h4>
-        <a href="#" onclick="shareSamta(); return false;">Share with a friend</a>
-        <a href="https://wa.me/1234567890" target="_blank" rel="noopener">Open on WhatsApp</a>
+        <a href="https://wa.me/?text=Check%20out%20Samta%20%E2%80%94%20a%20free%20Jain%20assistant%20on%20WhatsApp%20for%20food%20labels%2C%20fasting%20days%2C%20and%20more!%20https%3A%2F%2Fwww.asksamta.com" target="_blank" rel="noopener" onclick="shareSamta(); return false;">Share with a friend</a>
+        <a href="https://wa.me/19387770555" target="_blank" rel="noopener">Open on WhatsApp</a>
       </div>
       <div class="footer-col">
         <h4>Support</h4>
@@ -610,13 +704,13 @@
       </div>
       <div class="footer-col">
         <h4>Legal</h4>
-        <a href="#">Privacy policy</a>
+        <a href="/privacy.html">Privacy policy</a>
       </div>
     </div>
   </footer>
 
   <!-- FLOATING WIDGET -->
-  <a href="https://wa.me/1234567890" target="_blank" class="wa-float" aria-label="Chat with Samta on WhatsApp">
+  <a href="https://wa.me/19387770555" target="_blank" class="wa-float" aria-label="Chat with Samta on WhatsApp">
     <div class="wa-dot"></div>
     <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.525 5.847L.057 23.882l6.197-1.448A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.374l-.359-.214-3.68.859.925-3.585-.234-.368A9.79 9.79 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
     <span class="wa-float-label">Chat with Samta</span>
@@ -648,31 +742,54 @@
       }
     }
 
-    // Play only the video currently in view — pause all others
-    const videoObserver = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        const video = e.target.querySelector('.demo-screenshot');
-        if (!video) return;
-        if (e.isIntersecting) {
-          // Lazy-load on first sight
-          if (!video.dataset.loaded) {
-            video.dataset.loaded = '1';
-            video.querySelector('source').src = video.dataset.src;
-            video.load();
-          }
-          // Pause every other video
-          document.querySelectorAll('.demo-screenshot').forEach(v => {
-            if (v !== video) { v.pause(); v.currentTime = 0; }
-          });
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-          video.currentTime = 0;
-        }
+    // Click-to-play demos — one at a time, 2.5s pause before replay
+    function startVideo(video, btn) {
+      // Pause all others and reset their buttons
+      document.querySelectorAll('.card-img').forEach(ci => {
+        const v = ci.querySelector('.demo-screenshot');
+        const b = ci.querySelector('.play-btn');
+        if (v && v !== video) { v.pause(); v.currentTime = 0; }
+        if (b && b !== btn) b.classList.remove('hidden');
       });
-    }, { threshold: 0.6 });
 
-    document.querySelectorAll('.card').forEach(card => videoObserver.observe(card));
+      btn.classList.add('hidden');
+
+      if (!video.dataset.loaded) {
+        video.dataset.loaded = '1';
+        video.querySelector('source').src = video.dataset.src;
+        video.load();
+        video.addEventListener('canplay', () => video.play().catch(() => {}), { once: true });
+      } else {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      }
+
+      // After video ends: wait 2.5s then show play button again
+      video.addEventListener('ended', () => {
+        setTimeout(() => btn.classList.remove('hidden'), 2500);
+      }, { once: true });
+    }
+
+    document.querySelectorAll('.card-img').forEach(cardImg => {
+      const video = cardImg.querySelector('.demo-screenshot');
+      const btn = cardImg.querySelector('.play-btn');
+      if (!video || !btn) return;
+      btn.addEventListener('click', () => startVideo(video, btn));
+    });
+
+    // Autoplay card 1 when it scrolls into view
+    const firstCard = document.querySelector('.card');
+    if (firstCard) {
+      const autoObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          const video = firstCard.querySelector('.demo-screenshot');
+          const btn = firstCard.querySelector('.play-btn');
+          if (video && btn) startVideo(video, btn);
+          autoObserver.disconnect();
+        }
+      }, { threshold: 0.5 });
+      autoObserver.observe(firstCard);
+    }
   </script>
 
 </body>

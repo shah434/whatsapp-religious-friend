@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy – Samta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --cream: #F8F0E5; --sand: #EADBC8;
+      --terracotta: #102C57; --terra-dark: #0A1F3D;
+      --espresso: #0A1F3D; --muted: #6B5E4E;
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--espresso); }
+
+    /* NAV */
+    nav {
+      background: var(--cream); border-bottom: 1px solid var(--sand);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 48px; position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-size: 1.5rem; color: var(--terracotta); text-decoration: none; font-weight: 600; }
+    .nav-cta {
+      background: var(--terracotta); color: white; border: none;
+      padding: 10px 22px; border-radius: 100px; font-size: 0.9rem;
+      font-weight: 600; cursor: pointer; display: flex; align-items: center;
+      gap: 8px; text-decoration: none; transition: background 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .nav-cta:hover { background: var(--terra-dark); }
+    .nav-cta svg { width: 18px; height: 18px; }
+
+    /* CONTENT */
+    .privacy-wrap {
+      max-width: 820px; margin: 0 auto; padding: 56px 48px 80px;
+    }
+    .privacy-wrap h1 { font-size: 2rem; margin-bottom: 8px; color: var(--espresso); }
+    .privacy-wrap .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 40px; }
+
+    /* Override Termly styles to match site */
+    [data-custom-class='body'] { font-family: 'DM Sans', sans-serif !important; }
+    [data-custom-class='title'] { display: none; } /* hide Termly title — we use our own h1 */
+    [data-custom-class='subtitle'] { display: none; } /* hide Termly subtitle — we show our own */
+    [data-custom-class='heading_1'] h2, h2 {
+      font-family: 'DM Sans', sans-serif !important;
+      font-size: 1.15rem !important; font-weight: 600 !important;
+      color: var(--espresso) !important; margin: 32px 0 12px !important;
+    }
+    [data-custom-class='heading_2'] h3, h3 {
+      font-family: 'DM Sans', sans-serif !important;
+      font-size: 1rem !important; font-weight: 600 !important;
+      color: var(--espresso) !important; margin: 24px 0 8px !important;
+    }
+    [data-custom-class='body_text'], [data-custom-class='body_text'] * {
+      font-family: 'DM Sans', sans-serif !important;
+      font-size: 0.9rem !important; color: var(--muted) !important;
+      line-height: 1.75 !important;
+    }
+    [data-custom-class='link'], [data-custom-class='link'] * {
+      color: #2563EB !important; font-size: 0.9rem !important;
+      font-family: 'DM Sans', sans-serif !important;
+    }
+    ul { padding-left: 20px; margin: 8px 0 16px; }
+    ul li { margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.85rem; }
+    table td, table th { padding: 10px 12px; color: var(--muted); }
+    /* Hide Termly logo */
+    span[style*="background: url(data:image/svg"] { display: none !important; }
+    /* Hide "created using Termly" note */
+    br + div:last-child { display: none; }
+
+    /* FOOTER */
+    footer {
+      background: var(--espresso); color: rgba(255,255,255,0.6);
+      padding: 32px 48px; display: flex;
+      align-items: center; justify-content: space-between; font-size: 0.85rem;
+    }
+    footer .logo { color: white; font-size: 1.2rem; }
+    footer a { color: rgba(255,255,255,0.6); text-decoration: none; }
+    footer a:hover { color: white; }
+
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .privacy-wrap { padding: 40px 24px 60px; }
+      footer { flex-direction: column; gap: 12px; text-align: center; padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/" class="logo">Samta</a>
+    <a href="https://wa.me/1234567890" class="nav-cta" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.525 5.847L.057 23.882l6.197-1.448A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.374l-.359-.214-3.68.859.925-3.585-.234-.368A9.79 9.79 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+      Talk to Samta
+    </a>
+  </nav>
+
+  <div class="privacy-wrap">
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">Last updated June 12, 2026</p>
+
+    <div data-custom-class="body">
+      <div style="line-height: 1.5;"><span style="color: rgb(89, 89, 89); font-size: 15px;"><span data-custom-class="body_text">This Privacy Notice for <strong>Ask Samta</strong> ("we," "us," or "our") describes how and why we might access, collect, store, use, and/or share ("process") your personal information when you use our services, including when you:</span></span></div>
+      <ul>
+        <li data-custom-class="body_text">Visit our website at <a data-custom-class="link" href="http://www.asksamta.com">http://www.asksamta.com</a></li>
+        <li data-custom-class="body_text">Use our WhatsApp-based assistant (Ask Samta)</li>
+        <li data-custom-class="body_text">Engage with us in other related ways, including any marketing or events</li>
+      </ul>
+      <div style="line-height: 1.5;"><span data-custom-class="body_text"><strong>Questions or concerns?</strong> Reading this Privacy Notice will help you understand your privacy rights and choices. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a>.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>SUMMARY OF KEY POINTS</h2></span>
+      <div style="line-height: 1.5;"><span data-custom-class="body_text"><strong>What personal information do we process?</strong> When you visit, use, or navigate our Services, we may process personal information depending on how you interact with us and the Services, the choices you make, and the products and features you use.</span></div><br>
+      <div style="line-height: 1.5;"><span data-custom-class="body_text"><strong>Do we process any sensitive personal information?</strong> We do not process sensitive personal information.</span></div><br>
+      <div style="line-height: 1.5;"><span data-custom-class="body_text"><strong>Do we collect any information from third parties?</strong> We do not collect any information from third parties.</span></div><br>
+      <div style="line-height: 1.5;"><span data-custom-class="body_text"><strong>How do we process your information?</strong> We process your information to provide, improve, and administer our Services, communicate with you, for security and fraud prevention, and to comply with law.</span></div><br>
+      <div style="line-height: 1.5;"><span data-custom-class="body_text"><strong>What are your rights?</strong> Depending on where you are located geographically, the applicable privacy law may mean you have certain rights regarding your personal information.</span></div><br>
+      <div style="line-height: 1.5;"><span data-custom-class="body_text"><strong>How do you exercise your rights?</strong> Contact us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a>. We will consider and act upon any request in accordance with applicable data protection laws.</span></div>
+
+      <br><br>
+
+      <span data-custom-class="heading_1"><h2>1. WHAT INFORMATION DO WE COLLECT?</h2></span>
+      <span data-custom-class="heading_2"><h3>Personal information you disclose to us</h3></span>
+      <div><span data-custom-class="body_text"><em>We collect personal information that you provide to us.</em></span></div><br>
+      <div><span data-custom-class="body_text">We collect personal information that you voluntarily provide to us when you express an interest in obtaining information about us or our products and Services, when you participate in activities on the Services, or otherwise when you contact us.</span></div><br>
+      <div><span data-custom-class="body_text"><strong>Personal Information Provided by You.</strong> The personal information we collect may include:</span></div>
+      <ul>
+        <li data-custom-class="body_text">Phone numbers</li>
+        <li data-custom-class="body_text">Dietary preferences</li>
+        <li data-custom-class="body_text">Location</li>
+        <li data-custom-class="body_text">Timezone</li>
+        <li data-custom-class="body_text">Message content</li>
+      </ul>
+      <div><span data-custom-class="body_text"><strong>Sensitive Information.</strong> We do not process sensitive information.</span></div><br>
+      <div><span data-custom-class="body_text"><strong>Geolocation Information.</strong> We may request access or permission to track location-based information from your device to provide certain location-based services (e.g. finding nearby Jain restaurants). If you wish to change our access or permissions, you may do so in your device's settings.</span></div><br>
+      <div><span data-custom-class="body_text">All personal information that you provide to us must be true, complete, and accurate, and you must notify us of any changes to such personal information.</span></div>
+
+      <span data-custom-class="heading_2"><h3>Google API</h3></span>
+      <div><span data-custom-class="body_text">Our use of information received from Google APIs will adhere to <a data-custom-class="link" href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the <a data-custom-class="link" href="https://developers.google.com/terms/api-services-user-data-policy#limited-use" target="_blank" rel="noopener">Limited Use requirements</a>.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>2. HOW DO WE PROCESS YOUR INFORMATION?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> We process your information to provide, improve, and administer our Services, communicate with you, for security and fraud prevention, and to comply with law.</em></span></div><br>
+      <div><span data-custom-class="body_text">We process your personal information for the following reasons:</span></div>
+      <ul>
+        <li data-custom-class="body_text">To deliver and facilitate delivery of services to the user</li>
+        <li data-custom-class="body_text">To respond to user inquiries and offer support</li>
+        <li data-custom-class="body_text">To save or protect an individual's vital interest</li>
+      </ul>
+
+      <span data-custom-class="heading_1"><h2>3. WHAT LEGAL BASES DO WE RELY ON TO PROCESS YOUR INFORMATION?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> We only process your personal information when we believe it is necessary and we have a valid legal reason to do so under applicable law.</em></span></div><br>
+      <div><span data-custom-class="body_text"><strong>If you are located in the EU or UK:</strong> We rely on Consent, Legal Obligations, and Vital Interests as our legal bases.</span></div><br>
+      <div><span data-custom-class="body_text"><strong>If you are located in Canada:</strong> We may process your information if you have given us specific permission (express consent) or implied consent. You can withdraw your consent at any time.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>4. WHEN AND WITH WHOM DO WE SHARE YOUR PERSONAL INFORMATION?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> We may share information in specific situations described in this section.</em></span></div><br>
+      <ul>
+        <li data-custom-class="body_text"><strong>Business Transfers.</strong> We may share or transfer your information in connection with any merger, sale of company assets, financing, or acquisition.</li>
+        <li data-custom-class="body_text"><strong>Google Maps Platform APIs.</strong> We may share your information with Google Maps Platform APIs (e.g. Places API) to provide location-based features. You may revoke your consent anytime by contacting us.</li>
+      </ul>
+
+      <span data-custom-class="heading_1"><h2>5. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> We may use cookies and other tracking technologies to collect and store your information.</em></span></div><br>
+      <div><span data-custom-class="body_text">We may use cookies and similar tracking technologies to maintain security and assist with basic site functions. You can control cookies through your browser settings.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>6. DO WE OFFER ARTIFICIAL INTELLIGENCE-BASED PRODUCTS?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> We offer products, features, or tools powered by artificial intelligence.</em></span></div><br>
+      <div><span data-custom-class="body_text">We provide AI Products through third-party service providers, including <strong>Anthropic</strong>. Your input, output, and personal information will be shared with and processed by these AI Service Providers to enable your use of our AI Products. You must not use the AI Products in any way that violates the terms or policies of any AI Service Provider.</span></div><br>
+      <div><span data-custom-class="body_text">All personal information processed using our AI Products is handled in line with our Privacy Notice and our agreement with third parties.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>7. HOW LONG DO WE KEEP YOUR INFORMATION?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> We keep your information for as long as necessary to fulfill the purposes outlined in this Privacy Notice unless otherwise required by law.</em></span></div><br>
+      <div><span data-custom-class="body_text">When we have no ongoing legitimate business need to process your personal information, we will either delete or anonymize such information, or securely store it until deletion is possible.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>8. DO WE COLLECT INFORMATION FROM MINORS?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> We do not knowingly collect data from or market to children under 18 years of age.</em></span></div><br>
+      <div><span data-custom-class="body_text">We do not knowingly collect, solicit data from, or market to children under 18 years of age. If you become aware of any data we may have collected from children under age 18, please contact us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a>.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>9. WHAT ARE YOUR PRIVACY RIGHTS?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> Depending on your location, you have rights that allow you greater access to and control over your personal information.</em></span></div><br>
+      <div><span data-custom-class="body_text">In some regions (EEA, UK, Switzerland, Canada), you have the right to: request access and obtain a copy of your personal information, request rectification or erasure, restrict processing, data portability, and not be subject to automated decision-making.</span></div><br>
+      <div><span data-custom-class="body_text"><strong>Withdrawing your consent:</strong> You have the right to withdraw your consent at any time by contacting us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a>.</span></div><br>
+      <div><span data-custom-class="body_text">If you have questions or comments about your privacy rights, email us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a>.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>10. CONTROLS FOR DO-NOT-TRACK FEATURES</h2></span>
+      <div><span data-custom-class="body_text">Most web browsers include a Do-Not-Track ("DNT") feature. We do not currently respond to DNT browser signals as no uniform technology standard has been finalized. If a standard is adopted that we must follow, we will inform you in a revised version of this Privacy Notice.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>11. DO UNITED STATES RESIDENTS HAVE SPECIFIC PRIVACY RIGHTS?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> If you are a resident of California, Colorado, Connecticut, or other US states with privacy laws, you may have the right to request access to and receive details about the personal information we maintain about you.</em></span></div><br>
+      <div><span data-custom-class="body_text">We have not disclosed, sold, or shared any personal information to third parties for a business or commercial purpose in the preceding twelve (12) months. We will not sell or share personal information in the future belonging to website visitors, users, and other consumers.</span></div><br>
+      <div><span data-custom-class="body_text">To exercise your rights, contact us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a>.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>12. DO WE MAKE UPDATES TO THIS NOTICE?</h2></span>
+      <div><span data-custom-class="body_text"><em><strong>In Short:</strong> Yes, we will update this notice as necessary to stay compliant with relevant laws.</em></span></div><br>
+      <div><span data-custom-class="body_text">We may update this Privacy Notice from time to time. The updated version will be indicated by an updated "Revised" date at the top. We encourage you to review this Privacy Notice frequently.</span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>13. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2></span>
+      <div><span data-custom-class="body_text">If you have questions or comments about this notice, you may email us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a> or contact us by post at:</span></div><br>
+      <div><span data-custom-class="body_text">
+        <strong>Ask Samta</strong><br>
+        333 Schermerhorn St<br>
+        Brooklyn, NY 11217<br>
+        United States
+      </span></div>
+
+      <br>
+
+      <span data-custom-class="heading_1"><h2>14. HOW CAN YOU REVIEW, UPDATE, OR DELETE THE DATA WE COLLECT FROM YOU?</h2></span>
+      <div><span data-custom-class="body_text">Based on the applicable laws of your country or state of residence, you may have the right to request access to the personal information we collect from you, correct inaccuracies, or delete your personal information. To make a request, please email us at <a data-custom-class="link" href="mailto:hello@asksamta.com">hello@asksamta.com</a>.</span></div>
+    </div>
+  </div>
+
+  <footer>
+    <a href="/" class="logo">Samta</a>
+    <div>Questions? <a href="mailto:hello@asksamta.com">hello@asksamta.com</a></div>
+    <a href="/">← Back to home</a>
+  </footer>
+
+</body>
+</html>
